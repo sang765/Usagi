@@ -129,7 +129,9 @@ android {
 	}
 }
 dependencies {
-	implementation libs.usagi.serialization.library
+	implementation(libs.usagi.serialization.library) {
+		exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-serialization-core")
+	}
 	ksp libs.usagi.serialization.library
 	implementation libs.jsoup
 	implementation libs.tsuki
