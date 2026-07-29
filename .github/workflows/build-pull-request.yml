@@ -41,7 +41,7 @@ jobs:
         run: |
           export ANDROID_HOME=$RUNNER_TEMP/android-sdk
           export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
-          sdkmanager "platform-tools" "platforms;android-37" "build-tools;37.0.0"
+          sdkmanager "platform-tools" "platforms;android-37.0" "build-tools;37.0.0"
 
       - name: Build Pull Request
         run: |
