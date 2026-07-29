@@ -7,6 +7,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: ${{ runner.temp }}/android-sdk
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -28,25 +31,25 @@ jobs:
           path: ~/.gradle/caches
           key: gradle-cache-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
 
-      - name: Install Android command line tools (sdkmanager)
+      - name: Install Android SDK
         run: |
           cd $RUNNER_TEMP
           curl -sSfL "https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip" -o cmdline.zip
           unzip -q cmdline.zip
           mkdir -p android-sdk/cmdline-tools/latest
           mv cmdline-tools/* android-sdk/cmdline-tools/latest/
-          yes | $RUNNER_TEMP/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
 
       - name: Install required SDK packages
         run: |
-          export PATH=$RUNNER_TEMP/android-sdk/cmdline-tools/latest/bin:$RUNNER_TEMP/android-sdk/platform-tools:$PATH
-          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
+          sdkmanager "platform-tools" "platforms;android-37" "build-tools;37.0.0"
 
       - name: Build Pull Request
         run: ./gradlew assembleDebug --stacktrace
+        env:
+          ANDROID_HOME: ${{ runner.temp }}/android-sdk
+          ANDROID_SDK_ROOT: ${{ runner.temp }}/android-sdk
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
