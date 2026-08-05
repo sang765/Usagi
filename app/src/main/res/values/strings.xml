@@ -399,6 +399,11 @@
     <string name="mirror_switching_summary">Automatically switch domains for manga sources on errors if mirrors are available</string>
     <string name="transfer_cookies_on_redirect">Automatically transfer cookies to the new domain (beta)</string>
     <string name="transfer_cookies_on_redirect_summary">Automatically copy and transfer cookies from the old domain to the new domain if a redirection of the source comic\'s domain to a different domain is detected</string>
+    <string name="domain_redirect_title">Domain redirection detected</string>
+    <string name="domain_redirect_message">Domain name redirected of %1$s has been detected. Do you want set this domain as the default for %1$s?</string>
+    <string name="domain_redirect_accepted">The domain name has been redirected to become the default domain name for that source.</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
     <string name="pause">Pause</string>
     <string name="resume">Resume</string>
     <string name="paused">Paused</string>

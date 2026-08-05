@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	xmlns:tools="http://schemas.android.com/tools"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	android:orientation="vertical"
+	android:padding="?dialogPreferredPadding">
+
+	<TextView
+		android:id="@android:id/title"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_marginBottom="12dp"
+		android:gravity="center_horizontal"
+		android:textAlignment="center"
+		android:textAppearance="?textAppearanceLabelLarge"
+		android:textSize="18sp"
+		tools:text="@string/domain_redirect_title" />
+
+	<TextView
+		android:id="@android:id/message"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:gravity="center_horizontal"
+		android:textAlignment="center"
+		android:textAppearance="?textAppearanceBodyMedium"
+		tools:text="@string/domain_redirect_message" />
+
+	<com.google.android.material.button.MaterialButton
+		android:id="@android:id/button1"
+		style="?materialButtonTonalStyle"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_marginTop="16dp"
+		android:minHeight="48dp"
+		app:shapeAppearance="?shapeAppearanceCornerMedium"
+		tools:text="@string/yes" />
+
+	<com.google.android.material.button.MaterialButton
+		android:id="@android:id/button2"
+		style="?materialButtonOutlinedStyle"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_marginTop="8dp"
+		android:minHeight="48dp"
+		app:shapeAppearance="?shapeAppearanceCornerMedium"
+		tools:text="@string/no" />
+
+</LinearLayout>
