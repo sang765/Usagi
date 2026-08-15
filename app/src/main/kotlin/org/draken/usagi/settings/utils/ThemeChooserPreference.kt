@@ -19,6 +19,7 @@ import androidx.preference.Preference
 import androidx.preference.PreferenceViewHolder
 import org.draken.usagi.R
 import org.draken.usagi.core.prefs.ColorScheme
+import org.draken.usagi.core.prefs.CustomColorSchemeStore
 import org.draken.usagi.databinding.ItemColorSchemeBinding
 import org.draken.usagi.databinding.PreferenceThemeBinding
 import java.lang.ref.WeakReference
@@ -32,7 +33,8 @@ class ThemeChooserPreference
 		defStyleAttr: Int = R.attr.themeChooserPreferenceStyle,
 		defStyleRes: Int = R.style.Preference_ThemeChooser,
 	) : Preference(context, attrs, defStyleAttr, defStyleRes) {
-		private val entries = ColorScheme.getAvailableList()
+		private val entries: List<ColorScheme>
+			get() = ColorScheme.getAvailableList(context)
 		private var currentValue: ColorScheme = ColorScheme.default
 		private val lastScrollPosition = intArrayOf(-1)
 		private val itemClickListener =
@@ -55,9 +57,14 @@ class ThemeChooserPreference
 			}
 			binding.linear.removeAllViews()
 			for (theme in entries) {
-				val context = ContextThemeWrapper(context, theme.styleResId)
+				val themeContext =
+					if (theme == ColorScheme.CUSTOM) {
+						CustomColorSchemeStore.wrapContext(context, theme)
+					} else {
+						ContextThemeWrapper(context, theme.styleResId)
+					}
 				val item =
-					ItemColorSchemeBinding.inflate(LayoutInflater.from(context), binding.linear, false)
+					ItemColorSchemeBinding.inflate(LayoutInflater.from(themeContext), binding.linear, false)
 				if (binding.linear.isEmpty()) {
 					item.root.updatePaddingRelative(start = 0)
 				}
@@ -65,7 +72,7 @@ class ThemeChooserPreference
 				item.card.isChecked = isSelected
 				item.card.strokeWidth =
 					if (isSelected) {
-						context.resources.getDimensionPixelSize(
+						themeContext.resources.getDimensionPixelSize(
 							materialR.dimen.m3_comp_outlined_card_outline_width,
 						)
 					} else {
@@ -100,14 +107,14 @@ class ThemeChooserPreference
 		}
 
 		override fun onSetInitialValue(defaultValue: Any?) {
-			value =
-				getPersistedString(
-					when (defaultValue) {
-						is String -> ColorScheme.safeValueOf(defaultValue) ?: ColorScheme.default
-						is ColorScheme -> defaultValue
-						else -> ColorScheme.default
-					}.name,
-				)
+			val selected =
+				when (defaultValue) {
+					is String -> ColorScheme.safeValueOf(defaultValue) ?: ColorScheme.default
+					is ColorScheme -> defaultValue
+					else -> ColorScheme.default
+				}
+			val fallback = if (selected in entries) selected else ColorScheme.default
+			value = getPersistedString(fallback.name)
 		}
 
 		override fun onGetDefaultValue(

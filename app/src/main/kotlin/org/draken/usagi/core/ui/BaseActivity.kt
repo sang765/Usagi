@@ -25,6 +25,7 @@ import org.draken.usagi.BuildConfig
 import org.draken.usagi.R
 import org.draken.usagi.core.exceptions.resolve.ExceptionResolver
 import org.draken.usagi.core.nav.AppRouter
+import org.draken.usagi.core.prefs.CustomColorSchemeStore
 import org.draken.usagi.core.ui.util.ActionModeDelegate
 import org.draken.usagi.core.util.ext.isWebViewUnavailable
 import org.draken.usagi.main.ui.protect.ScreenshotPolicyHelper
@@ -52,7 +53,8 @@ abstract class BaseActivity<B : ViewBinding> :
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
 			AppCompatDelegate.setApplicationLocales(entryPoint.settings.appLocales)
 		}
-		super.attachBaseContext(newBase)
+		val themedBase = CustomColorSchemeStore.wrapContext(newBase, entryPoint.settings.colorScheme)
+		super.attachBaseContext(themedBase)
 	}
 
 	override fun onCreate(savedInstanceState: Bundle?) {

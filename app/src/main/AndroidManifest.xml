@@ -91,6 +91,10 @@
 			android:launchMode="singleTask"
 			android:taskAffinity="org.draken.usagi.crash" />
 		<activity
+			android:name="org.draken.usagi.settings.appearance.CustomColorSchemeActivity"
+			android:exported="false" />
+
+		<activity
 			android:name="org.draken.usagi.details.ui.DetailsActivity"
 			android:exported="true">
 			<intent-filter>

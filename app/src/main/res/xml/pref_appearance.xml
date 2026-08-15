@@ -8,6 +8,11 @@
         android:key="color_theme"
         android:title="@string/color_theme" />
 
+    <Preference
+        android:key="custom_color_scheme_editor"
+        android:title="@string/custom_color_scheme_editor"
+        android:summary="@string/custom_color_scheme_summary" />
+
     <ListPreference
         android:defaultValue="-1"
         android:entries="@array/themes"

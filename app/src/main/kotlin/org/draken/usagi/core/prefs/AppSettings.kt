@@ -14,6 +14,7 @@ import androidx.core.content.edit
 import androidx.core.os.LocaleListCompat
 import androidx.documentfile.provider.DocumentFile
 import androidx.preference.PreferenceManager
+import com.google.android.material.color.DynamicColors
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -51,7 +52,7 @@ import kotlin.enums.enumEntries
 class AppSettings
 	@Inject
 	constructor(
-		@ApplicationContext context: Context,
+		@ApplicationContext private val context: Context,
 	) {
 		private val prefs = PreferenceManager.getDefaultSharedPreferences(context)
 		private val connectivityManager = context.connectivityManager
@@ -72,7 +73,17 @@ class AppSettings
 					?: AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
 
 		val colorScheme: ColorScheme
-			get() = prefs.getEnumValue(KEY_COLOR_THEME, ColorScheme.default)
+			get() =
+				prefs.getEnumValue(KEY_COLOR_THEME, ColorScheme.default).let { selected ->
+					if (
+						selected == ColorScheme.CUSTOM &&
+						(!DynamicColors.isDynamicColorAvailable() || CustomColorSchemeStore.load(context) == null)
+					) {
+						ColorScheme.default
+					} else {
+						selected
+					}
+				}
 
 		val isAmoledTheme: Boolean
 			get() = prefs.getBoolean(KEY_THEME_AMOLED, false)
@@ -783,6 +794,7 @@ class AppSettings
 			const val KEY_LIST_MODE_SUGGESTIONS = "list_mode_suggestions"
 			const val KEY_THEME = "theme"
 			const val KEY_COLOR_THEME = "color_theme"
+			const val KEY_CUSTOM_COLOR_SCHEME_EDITOR = "custom_color_scheme_editor"
 			const val KEY_THEME_AMOLED = "amoled_theme"
 			const val KEY_OFFLINE_DISABLED = "no_offline"
 			const val KEY_PAGES_CACHE_CLEAR = "pages_cache_clear"

@@ -16,6 +16,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import org.draken.usagi.R
 import org.draken.usagi.core.os.AppShortcutManager
 import org.draken.usagi.core.prefs.AppSettings
+import org.draken.usagi.core.prefs.CustomColorSchemeStore
 import org.draken.usagi.core.prefs.ListMode
 import org.draken.usagi.core.prefs.ProgressIndicatorMode
 import org.draken.usagi.core.prefs.ScreenshotsPolicy
@@ -28,6 +29,7 @@ import org.draken.usagi.core.util.ext.postDelayed
 import org.draken.usagi.core.util.ext.setDefaultValueCompat
 import org.draken.usagi.core.util.ext.sortedWithSafe
 import org.draken.usagi.core.util.ext.toList
+import org.draken.usagi.settings.appearance.CustomColorSchemeActivity
 import org.draken.usagi.settings.protect.ProtectSetupActivity
 import org.draken.usagi.settings.utils.ActivityListPreference
 import org.draken.usagi.settings.utils.MultiSummaryProvider
@@ -53,6 +55,11 @@ class AppearanceSettingsFragment :
 		rootKey: String?,
 	) {
 		addPreferencesFromResource(R.xml.pref_appearance)
+		findPreference<Preference>(AppSettings.KEY_CUSTOM_COLOR_SCHEME_EDITOR)?.summaryProvider =
+			Preference.SummaryProvider<Preference> {
+				CustomColorSchemeStore.load(requireContext())?.name
+					?: getString(R.string.custom_color_scheme_summary)
+			}
 		findPreference<SliderPreference>(AppSettings.KEY_GRID_SIZE)?.summaryProvider = PercentSummaryProvider()
 		findPreference<ListPreference>(AppSettings.KEY_LIST_MODE)?.run {
 			entryValues = ListMode.entries.names()
@@ -104,11 +111,17 @@ class AppearanceSettingsFragment :
 	) {
 		super.onViewCreated(view, savedInstanceState)
 		settings.subscribe(this)
+		updateCustomSchemeSummary()
 	}
 
 	override fun onDestroyView() {
 		settings.unsubscribe(this)
 		super.onDestroyView()
+	}
+
+	override fun onResume() {
+		super.onResume()
+		updateCustomSchemeSummary()
 	}
 
 	override fun onSharedPreferenceChanged(
@@ -143,6 +156,11 @@ class AppearanceSettingsFragment :
 
 	override fun onPreferenceTreeClick(preference: Preference): Boolean {
 		return when (preference.key) {
+			AppSettings.KEY_CUSTOM_COLOR_SCHEME_EDITOR -> {
+				startActivity(Intent(requireContext(), CustomColorSchemeActivity::class.java))
+				true
+			}
+
 			AppSettings.KEY_PROTECT_APP -> {
 				val pref = (preference as? TwoStatePreference ?: return false)
 				if (pref.isChecked) {
@@ -189,6 +207,12 @@ class AppearanceSettingsFragment :
 					locales[i - 1].toLanguageTag()
 				}
 			}
+	}
+
+	private fun updateCustomSchemeSummary() {
+		findPreference<Preference>(AppSettings.KEY_CUSTOM_COLOR_SCHEME_EDITOR)?.summary =
+			CustomColorSchemeStore.load(requireContext())?.name
+				?: getString(R.string.custom_color_scheme_summary)
 	}
 
 	private fun bindNavSummary() {

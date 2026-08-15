@@ -23,6 +23,7 @@ enum class ColorScheme(
 	MAMIMI(R.style.ThemeOverlay_Usagi_Mamimi, R.string.theme_name_mamimi),
 	KANADE(R.style.ThemeOverlay_Usagi_Kanade, R.string.theme_name_kanade),
 	ITSUKA(R.style.ThemeOverlay_Usagi_Itsuka, R.string.theme_name_itsuka),
+	CUSTOM(R.style.ThemeOverlay_Usagi_Monet, R.string.custom_color_scheme),
 	;
 
 	companion object {
@@ -34,11 +35,14 @@ enum class ColorScheme(
 					DEFAULT
 				}
 
-		fun getAvailableList(): List<ColorScheme> {
+		fun getAvailableList(context: android.content.Context? = null): List<ColorScheme> {
 			val list = ColorScheme.entries.toMutableList()
 			if (!DynamicColors.isDynamicColorAvailable()) {
 				list.remove(MONET)
 				list.remove(EXPRESSIVE)
+				list.remove(CUSTOM)
+			} else if (context != null && CustomColorSchemeStore.load(context) == null) {
+				list.remove(CUSTOM)
 			}
 			return list
 		}
