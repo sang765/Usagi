@@ -1,6 +1,8 @@
 package org.draken.usagi.settings.utils
 
 import android.content.Context
+import android.content.res.ColorStateList
+import android.content.res.Configuration
 import android.content.res.TypedArray
 import android.os.Build
 import android.os.Parcel
@@ -17,6 +19,7 @@ import androidx.core.view.updatePaddingRelative
 import androidx.customview.view.AbsSavedState
 import androidx.preference.Preference
 import androidx.preference.PreferenceViewHolder
+import com.google.android.material.color.utilities.CorePalette
 import org.draken.usagi.R
 import org.draken.usagi.core.prefs.ColorScheme
 import org.draken.usagi.core.prefs.CustomColorSchemeStore
@@ -57,12 +60,8 @@ class ThemeChooserPreference
 			}
 			binding.linear.removeAllViews()
 			for (theme in entries) {
-				val themeContext =
-					if (theme == ColorScheme.CUSTOM) {
-						CustomColorSchemeStore.wrapContext(context, theme)
-					} else {
-						ContextThemeWrapper(context, theme.styleResId)
-					}
+				val themeContext = ContextThemeWrapper(context, theme.styleResId)
+
 				val item =
 					ItemColorSchemeBinding.inflate(LayoutInflater.from(themeContext), binding.linear, false)
 				if (binding.linear.isEmpty()) {
@@ -79,6 +78,10 @@ class ThemeChooserPreference
 						0
 					}
 				item.textViewTitle.setText(theme.titleResId)
+				if (theme == ColorScheme.CUSTOM) {
+					applyCustomPreview(item)
+				}
+
 				item.root.tag = theme
 				item.card.tag = theme
 				item.imageViewCheck.isVisible = theme == currentValue
@@ -137,6 +140,30 @@ class ThemeChooserPreference
 			}
 			super.onRestoreInstanceState(state.superState)
 			lastScrollPosition[0] = state.scrollPosition
+		}
+
+		fun refreshEntries() {
+			notifyChanged()
+		}
+
+		private fun applyCustomPreview(item: ItemColorSchemeBinding) {
+			val scheme = CustomColorSchemeStore.load(context) ?: return
+			val palette = CorePalette.of(scheme.seedColor)
+			val isDark =
+				context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK ==
+					Configuration.UI_MODE_NIGHT_YES
+			val primary = palette.a1.tone(if (isDark) 80 else 40)
+			val secondary = palette.a2.tone(if (isDark) 80 else 40)
+			val surfaceContainer = palette.n1.tone(if (isDark) 12 else 94)
+			val onSurface = palette.n1.tone(if (isDark) 90 else 10)
+			val outline = palette.n2.tone(if (isDark) 60 else 50)
+
+			item.card.setCardBackgroundColor(surfaceContainer)
+			item.card.setStrokeColor(outline)
+			item.shape1.setBackgroundColor(secondary)
+			item.shape2.setBackgroundColor(secondary)
+			item.textViewTitle.setTextColor(onSurface)
+			item.imageViewCheck.imageTintList = ColorStateList.valueOf(primary)
 		}
 
 		private fun setValueInternal(

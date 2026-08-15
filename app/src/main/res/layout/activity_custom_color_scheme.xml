@@ -53,6 +53,9 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
                 android:hint="@string/custom_color_scheme_seed"
+                app:endIconContentDescription="@string/custom_color_scheme_pick_color"
+                app:endIconDrawable="@drawable/ic_color_picker"
+                app:endIconMode="custom"
                 app:helperText="@string/custom_color_scheme_seed_summary">
 
                 <com.google.android.material.textfield.TextInputEditText

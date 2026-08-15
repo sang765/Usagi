@@ -35,6 +35,7 @@ import org.draken.usagi.settings.utils.ActivityListPreference
 import org.draken.usagi.settings.utils.MultiSummaryProvider
 import org.draken.usagi.settings.utils.PercentSummaryProvider
 import org.draken.usagi.settings.utils.SliderPreference
+import org.draken.usagi.settings.utils.ThemeChooserPreference
 import tsuki.util.mapToSet
 import tsuki.util.names
 import tsuki.util.toTitleCase
@@ -117,6 +118,7 @@ class AppearanceSettingsFragment :
 
 	override fun onResume() {
 		super.onResume()
+		findPreference<ThemeChooserPreference>(AppSettings.KEY_COLOR_THEME)?.refreshEntries()
 		updateCustomSchemeSummary()
 	}
 

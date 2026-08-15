@@ -1,12 +1,13 @@
 package org.draken.usagi.settings.appearance
 
 import android.graphics.Color
-import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
+import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
+import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.preference.PreferenceManager
 import com.google.android.material.color.DynamicColors
@@ -63,6 +64,7 @@ class CustomColorSchemeActivity : BaseActivity<ActivityCustomColorSchemeBinding>
 				viewBinding.seedEdit.addTextChangedListener(listener)
 			}
 
+		viewBinding.seedLayout.setEndIconOnClickListener { showColorPicker() }
 		viewBinding.resetButton.setOnClickListener {
 			viewBinding.nameEdit.setText(CustomColorScheme.DEFAULT_NAME)
 			viewBinding.seedEdit.setText(formatColor(CustomColorScheme.DEFAULT_SEED_COLOR))
@@ -123,11 +125,6 @@ class CustomColorSchemeActivity : BaseActivity<ActivityCustomColorSchemeBinding>
 				.orEmpty()
 				.ifBlank { CustomColorScheme.DEFAULT_NAME }
 		CustomColorSchemeStore.save(this, CustomColorScheme(name, seed))
-		PreferenceManager
-			.getDefaultSharedPreferences(this)
-			.edit()
-			.putString(AppSettings.KEY_COLOR_THEME, ColorScheme.CUSTOM.name)
-			.apply()
 		Toast.makeText(this, R.string.custom_color_scheme_saved, Toast.LENGTH_SHORT).show()
 		finish()
 	}
@@ -138,15 +135,43 @@ class CustomColorSchemeActivity : BaseActivity<ActivityCustomColorSchemeBinding>
 			.setNegativeButton(android.R.string.cancel, null)
 			.setPositiveButton(R.string.delete) { _, _ ->
 				CustomColorSchemeStore.clear(this)
-				PreferenceManager
-					.getDefaultSharedPreferences(this)
-					.edit()
-					.putString(AppSettings.KEY_COLOR_THEME, ColorScheme.default.name)
-					.apply()
+				val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+				if (prefs.getString(AppSettings.KEY_COLOR_THEME, null) == ColorScheme.CUSTOM.name) {
+					prefs.edit().putString(AppSettings.KEY_COLOR_THEME, ColorScheme.default.name).apply()
+				}
 				Toast.makeText(this, R.string.custom_color_scheme_deleted, Toast.LENGTH_SHORT).show()
+
 				finish()
 			}.show()
 	}
+
+	private fun showColorPicker() {
+		val currentColor = parseColor(viewBinding.seedEdit.text?.toString()) ?: CustomColorScheme.DEFAULT_SEED_COLOR
+		val picker =
+			ColorPickerView(this).apply {
+				setColor(currentColor)
+			}
+		val container =
+			FrameLayout(this).apply {
+				setPadding(dp(24), dp(8), dp(24), 0)
+				addView(
+					picker,
+					FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(280)),
+				)
+			}
+		picker.setOnColorChangedListener { color ->
+			viewBinding.seedEdit.setText(formatColor(color))
+			viewBinding.seedEdit.setSelection(viewBinding.seedEdit.length())
+		}
+		MaterialAlertDialogBuilder(this)
+			.setTitle(R.string.custom_color_scheme_pick_color)
+			.setView(container)
+			.setNegativeButton(android.R.string.cancel, null)
+			.setPositiveButton(R.string.done, null)
+			.show()
+	}
+
+	private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
 	private fun parseColor(value: String?): Int? {
 		val normalized = value?.trim()?.let { if (it.startsWith('#')) it else "#$it" } ?: return null

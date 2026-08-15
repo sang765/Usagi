@@ -373,6 +373,7 @@
     <string name="custom_color_scheme_name">Scheme name</string>
     <string name="custom_color_scheme_seed">Seed color</string>
     <string name="custom_color_scheme_seed_summary">Choose a color to generate the Material 3 palette</string>
+    <string name="custom_color_scheme_pick_color">Pick a color</string>
     <string name="custom_color_scheme_preview">Scheme preview</string>
     <string name="custom_color_scheme_save">Save scheme</string>
     <string name="custom_color_scheme_delete">Delete custom scheme</string>
