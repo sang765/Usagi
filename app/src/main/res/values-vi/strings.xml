@@ -289,6 +289,9 @@
     <string name="status_re_reading">Đọc lại</string>
     <string name="no_chapters">Không có chương nào</string>
     <string name="crash_text">Có gì đó không đúng. Vui lòng gửi một báo cáo lỗi cho các nhà phát triển để giúp chúng tôi sửa nó.</string>
+    <string name="save_crash_log">Lưu nhật ký crash</string>
+    <string name="crash_log_saved">Đã lưu nhật ký crash vào Downloads</string>
+    <string name="crash_log_save_failed">Không thể lưu nhật ký crash</string>
     <string name="status_on_hold">Tạm ngưng</string>
     <string name="status_dropped">Đã ngưng</string>
     <string name="appwidget_shelf_description">Manga từ các mục yêu thích của bạn</string>

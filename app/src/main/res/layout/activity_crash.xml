@@ -104,13 +104,21 @@
 				android:layout_height="wrap_content"
 				android:text="@string/report" />
 
-			<Button
-				android:id="@+id/button_restart"
-				style="?materialButtonOutlinedStyle"
-				android:layout_width="match_parent"
-				android:layout_height="wrap_content"
-				android:layout_marginTop="8dp"
-				android:text="@string/restart_app" />
+				<Button
+					android:id="@+id/button_save_crash_log"
+					style="?materialButtonOutlinedStyle"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="8dp"
+					android:text="@string/save_crash_log" />
+
+				<Button
+					android:id="@+id/button_restart"
+					style="?materialButtonOutlinedStyle"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="8dp"
+					android:text="@string/restart_app" />
 
 		</LinearLayout>
 
