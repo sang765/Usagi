@@ -24,6 +24,7 @@ import org.draken.usagi.core.model.PluginKeyResolver
 import org.draken.usagi.core.os.AppValidator
 import org.draken.usagi.core.parser.MangaDynamicRepository
 import org.draken.usagi.core.prefs.AppSettings
+import org.draken.usagi.core.prefs.CustomColorSchemeStore
 import org.draken.usagi.core.ui.GlobalExceptionHandler
 import org.draken.usagi.core.util.ext.processLifecycleScope
 import org.draken.usagi.filter.data.SavedFiltersRepository
@@ -94,6 +95,8 @@ open class BaseApp :
 		AppInfo.initialize(BuildConfig.VERSION_CODE, BuildConfig.VERSION_NAME)
 		PlatformRegistry.applicationContext = this // TODO replace with OkHttp.initialize
 		AppCompatDelegate.setDefaultNightMode(settings.theme)
+		CustomColorSchemeStore.prewarmAsync(this)
+
 		// TLS 1.3 support for Android < 10
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
 			Security.insertProviderAt(Conscrypt.newProvider(), 1)

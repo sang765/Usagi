@@ -16,6 +16,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import org.draken.usagi.R
 import org.draken.usagi.core.os.AppShortcutManager
 import org.draken.usagi.core.prefs.AppSettings
+import org.draken.usagi.core.prefs.CustomColorScheme
 import org.draken.usagi.core.prefs.CustomColorSchemeStore
 import org.draken.usagi.core.prefs.ListMode
 import org.draken.usagi.core.prefs.ProgressIndicatorMode
@@ -50,6 +51,8 @@ class AppearanceSettingsFragment :
 
 	@Inject
 	lateinit var appShortcutManager: AppShortcutManager
+
+	private var customSchemeSnapshot: CustomColorScheme? = null
 
 	override fun onCreatePreferences(
 		savedInstanceState: Bundle?,
@@ -99,6 +102,7 @@ class AppearanceSettingsFragment :
 			pref.summaryProvider = MultiSummaryProvider(R.string.none)
 			pref.values = settings.searchSuggestionTypes.mapToSet { it.name }
 		}
+		customSchemeSnapshot = CustomColorSchemeStore.load(requireContext())
 		bindNavSummary()
 	}
 
@@ -118,7 +122,11 @@ class AppearanceSettingsFragment :
 
 	override fun onResume() {
 		super.onResume()
-		findPreference<ThemeChooserPreference>(AppSettings.KEY_COLOR_THEME)?.refreshEntries()
+		val currentScheme = CustomColorSchemeStore.load(requireContext())
+		if (currentScheme != customSchemeSnapshot) {
+			customSchemeSnapshot = currentScheme
+			findPreference<ThemeChooserPreference>(AppSettings.KEY_COLOR_THEME)?.refreshEntries()
+		}
 		updateCustomSchemeSummary()
 	}
 

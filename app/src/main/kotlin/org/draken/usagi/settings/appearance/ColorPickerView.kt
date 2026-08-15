@@ -29,13 +29,14 @@ class ColorPickerView
 		private val hueColors =
 			intArrayOf(
 				Color.RED,
-				Color.MAGENTA,
-				Color.BLUE,
-				Color.CYAN,
-				Color.GREEN,
 				Color.YELLOW,
+				Color.GREEN,
+				Color.CYAN,
+				Color.BLUE,
+				Color.MAGENTA,
 				Color.RED,
 			)
+
 		private var activeArea = ActiveArea.NONE
 		private var onColorChangedListener: ((Int) -> Unit)? = null
 
