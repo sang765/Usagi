@@ -125,6 +125,7 @@ class CustomColorSchemeActivity : BaseActivity<ActivityCustomColorSchemeBinding>
 				.orEmpty()
 				.ifBlank { CustomColorScheme.DEFAULT_NAME }
 		CustomColorSchemeStore.save(this, CustomColorScheme(name, seed))
+		setResult(RESULT_OK)
 		Toast.makeText(this, R.string.custom_color_scheme_saved, Toast.LENGTH_SHORT).show()
 		finish()
 	}
@@ -135,7 +136,9 @@ class CustomColorSchemeActivity : BaseActivity<ActivityCustomColorSchemeBinding>
 			.setNegativeButton(android.R.string.cancel, null)
 			.setPositiveButton(R.string.delete) { _, _ ->
 				CustomColorSchemeStore.clear(this)
+				setResult(RESULT_OK)
 				val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+
 				if (prefs.getString(AppSettings.KEY_COLOR_THEME, null) == ColorScheme.CUSTOM.name) {
 					prefs.edit().putString(AppSettings.KEY_COLOR_THEME, ColorScheme.default.name).apply()
 				}

@@ -1,5 +1,6 @@
 package org.draken.usagi.settings
 
+import android.app.Activity
 import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
@@ -7,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.preference.ListPreference
 import androidx.preference.MultiSelectListPreference
@@ -48,6 +50,13 @@ class AppearanceSettingsFragment :
 	SharedPreferences.OnSharedPreferenceChangeListener {
 	@Inject
 	lateinit var activityRecreationHandle: ActivityRecreationHandle
+
+	private val customSchemeEditorLauncher =
+		registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+			if (result.resultCode == Activity.RESULT_OK) {
+				refreshCustomSchemePreference()
+			}
+		}
 
 	@Inject
 	lateinit var appShortcutManager: AppShortcutManager
@@ -163,7 +172,7 @@ class AppearanceSettingsFragment :
 	override fun onPreferenceTreeClick(preference: Preference): Boolean {
 		return when (preference.key) {
 			AppSettings.KEY_CUSTOM_COLOR_SCHEME_EDITOR -> {
-				startActivity(Intent(requireContext(), CustomColorSchemeActivity::class.java))
+				customSchemeEditorLauncher.launch(Intent(requireContext(), CustomColorSchemeActivity::class.java))
 				true
 			}
 
@@ -213,6 +222,12 @@ class AppearanceSettingsFragment :
 					locales[i - 1].toLanguageTag()
 				}
 			}
+	}
+
+	private fun refreshCustomSchemePreference() {
+		customSchemeSnapshot = CustomColorSchemeStore.load(requireContext())
+		findPreference<ThemeChooserPreference>(AppSettings.KEY_COLOR_THEME)?.refreshEntries()
+		updateCustomSchemeSummary()
 	}
 
 	private fun updateCustomSchemeSummary() {
