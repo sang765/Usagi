@@ -55,11 +55,7 @@ class AppearanceSettingsFragment :
 		rootKey: String?,
 	) {
 		addPreferencesFromResource(R.xml.pref_appearance)
-		findPreference<Preference>(AppSettings.KEY_CUSTOM_COLOR_SCHEME_EDITOR)?.summaryProvider =
-			Preference.SummaryProvider<Preference> {
-				CustomColorSchemeStore.load(requireContext())?.name
-					?: getString(R.string.custom_color_scheme_summary)
-			}
+		updateCustomSchemeSummary()
 		findPreference<SliderPreference>(AppSettings.KEY_GRID_SIZE)?.summaryProvider = PercentSummaryProvider()
 		findPreference<ListPreference>(AppSettings.KEY_LIST_MODE)?.run {
 			entryValues = ListMode.entries.names()
