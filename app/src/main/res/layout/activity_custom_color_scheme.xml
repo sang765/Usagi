@@ -43,7 +43,7 @@
                     android:id="@+id/name_edit"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:inputType="textCapSentences"
+                    android:inputType="textCapSentences|textNoSuggestions"
                     android:maxLength="32" />
             </com.google.android.material.textfield.TextInputLayout>
 
@@ -59,7 +59,7 @@
                     android:id="@+id/seed_edit"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:inputType="textCapCharacters"
+                    android:inputType="textCapCharacters|textNoSuggestions"
                     android:maxLength="9"
                     android:singleLine="true" />
             </com.google.android.material.textfield.TextInputLayout>

@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
+import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.preference.PreferenceManager
 import com.google.android.material.color.DynamicColors
@@ -85,6 +86,10 @@ class CustomColorSchemeActivity : BaseActivity<ActivityCustomColorSchemeBinding>
 	}
 
 	override fun onDestroy() {
+		viewBinding.nameEdit.clearFocus()
+		viewBinding.seedEdit.clearFocus()
+		(getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager)
+			?.hideSoftInputFromWindow(viewBinding.root.windowToken, 0)
 		watcher?.let { listener ->
 			viewBinding.nameEdit.removeTextChangedListener(listener)
 			viewBinding.seedEdit.removeTextChangedListener(listener)

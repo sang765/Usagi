@@ -106,6 +106,17 @@ class ChipsView
 			}
 		}
 
+		/**
+		 * Releases listener and image references before a RecyclerView item is recycled.
+		 * The listener can capture a Fragment and the Coil target captures the chip view.
+		 */
+		fun clearForRecycle() {
+			onChipClickListener = null
+			onChipCloseClickListener = null
+			onChipLongClickListener = null
+			children.forEach { (it as? DataChip)?.disposeForRecycle() }
+		}
+
 		fun setChips(items: Collection<ChipModel>) {
 			suppressLayoutCompat(true)
 			try {
@@ -253,7 +264,7 @@ class ChipsView
 						val placeholder = model.icon.ifZero { materialR.drawable.navigation_empty_icon }
 						imageRequest =
 							ImageRequest
-								.Builder(context)
+								.Builder(context.applicationContext)
 								.data(model.iconData)
 								.crossfade(false)
 								.size(resources.getDimensionPixelSize(materialR.dimen.m3_chip_icon_size))
@@ -280,6 +291,8 @@ class ChipsView
 					}
 				}
 			}
+
+			fun disposeForRecycle() = disposeIcon()
 
 			private fun disposeIcon() {
 				imageRequest?.dispose()
