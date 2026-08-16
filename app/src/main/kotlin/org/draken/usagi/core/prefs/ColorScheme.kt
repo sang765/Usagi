@@ -40,10 +40,11 @@ enum class ColorScheme(
 			if (!DynamicColors.isDynamicColorAvailable()) {
 				list.remove(MONET)
 				list.remove(EXPRESSIVE)
-				list.remove(CUSTOM)
-			} else if (context != null && CustomColorSchemeStore.load(context) == null) {
+			}
+			if (context != null && CustomColorSchemeStore.load(context) == null) {
 				list.remove(CUSTOM)
 			}
+
 			return list
 		}
 
