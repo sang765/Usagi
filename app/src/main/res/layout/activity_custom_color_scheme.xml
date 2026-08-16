@@ -68,6 +68,20 @@
             </com.google.android.material.textfield.TextInputLayout>
 
             <TextView
+                android:id="@+id/roles_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/custom_color_scheme_roles"
+                android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+            <LinearLayout
+                android:id="@+id/roles_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <TextView
                 android:id="@+id/platform_warning"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

@@ -23,7 +23,7 @@ enum class ColorScheme(
 	MAMIMI(R.style.ThemeOverlay_Usagi_Mamimi, R.string.theme_name_mamimi),
 	KANADE(R.style.ThemeOverlay_Usagi_Kanade, R.string.theme_name_kanade),
 	ITSUKA(R.style.ThemeOverlay_Usagi_Itsuka, R.string.theme_name_itsuka),
-	CUSTOM(R.style.ThemeOverlay_Usagi_Monet, R.string.custom_color_scheme),
+	CUSTOM(R.style.ThemeOverlay_Usagi_Custom, R.string.custom_color_scheme),
 	;
 
 	companion object {

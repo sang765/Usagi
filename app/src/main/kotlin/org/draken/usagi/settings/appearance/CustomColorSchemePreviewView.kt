@@ -6,8 +6,9 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.View
-import com.google.android.material.color.utilities.CorePalette
+import org.draken.usagi.core.prefs.CustomColorRole
 import org.draken.usagi.core.prefs.CustomColorScheme
+import org.draken.usagi.core.prefs.CustomColorSchemeStore
 import kotlin.math.roundToInt
 
 class CustomColorSchemePreviewView
@@ -19,17 +20,16 @@ class CustomColorSchemePreviewView
 		private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 		private val rect = RectF()
 		private var scheme = CustomColorScheme(CustomColorScheme.DEFAULT_NAME, CustomColorScheme.DEFAULT_SEED_COLOR)
-		private var dark = false
+		private var colors = CustomColorSchemeStore.resolvedColors(context, scheme)
 
 		init {
 			setLayerType(View.LAYER_TYPE_SOFTWARE, null)
-			val mode = resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
-			dark = mode == android.content.res.Configuration.UI_MODE_NIGHT_YES
 			isFocusable = true
 		}
 
 		fun setScheme(value: CustomColorScheme) {
 			scheme = value
+			colors = CustomColorSchemeStore.resolvedColors(context, value)
 			invalidate()
 		}
 
@@ -43,14 +43,13 @@ class CustomColorSchemePreviewView
 
 		override fun onDraw(canvas: Canvas) {
 			super.onDraw(canvas)
-			val palette = CorePalette.of(scheme.seedColor)
-			val primary = palette.a1.tone(if (dark) 80 else 40)
-			val onPrimary = palette.a1.tone(if (dark) 20 else 100)
-			val secondary = palette.a2.tone(if (dark) 80 else 40)
-			val surface = palette.n1.tone(if (dark) 6 else 98)
-			val surfaceContainer = palette.n1.tone(if (dark) 12 else 94)
-			val onSurface = palette.n1.tone(if (dark) 90 else 10)
-			val outline = palette.n2.tone(if (dark) 60 else 50)
+			val primary = colors.getValue(CustomColorRole.PRIMARY.key)
+			val onPrimary = colors.getValue(CustomColorRole.ON_PRIMARY.key)
+			val secondary = colors.getValue(CustomColorRole.SECONDARY.key)
+			val surface = colors.getValue(CustomColorRole.SURFACE.key)
+			val surfaceContainer = colors.getValue(CustomColorRole.SURFACE_CONTAINER.key)
+			val onSurface = colors.getValue(CustomColorRole.ON_SURFACE.key)
+			val outline = colors.getValue(CustomColorRole.OUTLINE.key)
 
 			canvas.drawColor(surface)
 			val padding = width * 0.06f

@@ -32,4 +32,24 @@
 	<color name="usagi_inverseOnSurface">#1A1B1F</color>
 	<color name="usagi_background">#1A1B1F</color>
 	<color name="usagi_outline">#8E9099</color>
+
+	<color name="usagi_onBackground">#C7C6CA</color>
+	<color name="usagi_outlineVariant">#44474E</color>
+	<color name="usagi_scrim">#000000</color>
+	<color name="usagi_primaryFixed">#D7E3FF</color>
+	<color name="usagi_onPrimaryFixed">#001B3F</color>
+	<color name="usagi_primaryFixedDim">#ABC7FF</color>
+	<color name="usagi_onPrimaryFixedVariant">#00458F</color>
+	<color name="usagi_secondaryFixed">#DAE2F9</color>
+	<color name="usagi_onSecondaryFixed">#141B2C</color>
+	<color name="usagi_secondaryFixedDim">#BEC6DC</color>
+	<color name="usagi_onSecondaryFixedVariant">#3E4759</color>
+	<color name="usagi_tertiaryFixed">#FAD8FD</color>
+	<color name="usagi_onTertiaryFixed">#29132F</color>
+	<color name="usagi_tertiaryFixedDim">#DDBCE0</color>
+	<color name="usagi_onTertiaryFixedVariant">#573E5C</color>
+	<color name="usagi_error">#FFB4AB</color>
+	<color name="usagi_onError">#690005</color>
+	<color name="usagi_errorContainer">#93000A</color>
+	<color name="usagi_onErrorContainer">#FFDAD6</color>
 </resources>

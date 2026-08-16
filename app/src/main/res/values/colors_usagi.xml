@@ -32,4 +32,25 @@
 	<color name="usagi_inverseOnSurface">#F2F0F4</color>
 	<color name="usagi_background">#FEFBFF</color>
 	<color name="usagi_outline">#757780</color>
+
+	<!-- Complete custom Material 3 role set. -->
+	<color name="usagi_onBackground">#191C20</color>
+	<color name="usagi_outlineVariant">#C3C6CF</color>
+	<color name="usagi_scrim">#000000</color>
+	<color name="usagi_primaryFixed">#D4E3FF</color>
+	<color name="usagi_onPrimaryFixed">#001C3A</color>
+	<color name="usagi_primaryFixedDim">#A6C8FF</color>
+	<color name="usagi_onPrimaryFixedVariant">#224876</color>
+	<color name="usagi_secondaryFixed">#D8E3F8</color>
+	<color name="usagi_onSecondaryFixed">#111C2B</color>
+	<color name="usagi_secondaryFixedDim">#BCC7DC</color>
+	<color name="usagi_onSecondaryFixedVariant">#3D4758</color>
+	<color name="usagi_tertiaryFixed">#F7D8FF</color>
+	<color name="usagi_onTertiaryFixed">#271430</color>
+	<color name="usagi_tertiaryFixedDim">#DABDE2</color>
+	<color name="usagi_onTertiaryFixedVariant">#553F5D</color>
+	<color name="usagi_error">#BA1A1A</color>
+	<color name="usagi_onError">#FFFFFF</color>
+	<color name="usagi_errorContainer">#FFDAD6</color>
+	<color name="usagi_onErrorContainer">#93000A</color>
 </resources>

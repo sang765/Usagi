@@ -326,7 +326,8 @@
     <string name="custom_color_scheme_editor">Bảng màu tùy chỉnh</string>
     <string name="custom_color_scheme_name">Tên bảng màu</string>
     <string name="custom_color_scheme_seed">Màu gốc</string>
-    <string name="custom_color_scheme_seed_summary">Chọn màu để tạo bảng màu Material 3</string>
+    <string name="custom_color_scheme_seed_summary">Màu nền dùng để tạo các vai trò Material 3 ban đầu</string>
+    <string name="custom_color_scheme_roles">Các vai trò màu Material 3</string>
     <string name="custom_color_scheme_pick_color">Chọn màu</string>
     <string name="custom_color_scheme_preview">Xem trước bảng màu</string>
     <string name="custom_color_scheme_save">Lưu bảng màu</string>

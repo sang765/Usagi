@@ -2,7 +2,6 @@ package org.draken.usagi.settings.utils
 
 import android.content.Context
 import android.content.res.ColorStateList
-import android.content.res.Configuration
 import android.content.res.TypedArray
 import android.os.Build
 import android.os.Parcel
@@ -19,9 +18,9 @@ import androidx.core.view.updatePaddingRelative
 import androidx.customview.view.AbsSavedState
 import androidx.preference.Preference
 import androidx.preference.PreferenceViewHolder
-import com.google.android.material.color.utilities.CorePalette
 import org.draken.usagi.R
 import org.draken.usagi.core.prefs.ColorScheme
+import org.draken.usagi.core.prefs.CustomColorRole
 import org.draken.usagi.core.prefs.CustomColorSchemeStore
 import org.draken.usagi.databinding.ItemColorSchemeBinding
 import org.draken.usagi.databinding.PreferenceThemeBinding
@@ -148,15 +147,12 @@ class ThemeChooserPreference
 
 		private fun applyCustomPreview(item: ItemColorSchemeBinding) {
 			val scheme = CustomColorSchemeStore.load(context) ?: return
-			val palette = CorePalette.of(scheme.seedColor)
-			val isDark =
-				context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK ==
-					Configuration.UI_MODE_NIGHT_YES
-			val primary = palette.a1.tone(if (isDark) 80 else 40)
-			val secondary = palette.a2.tone(if (isDark) 80 else 40)
-			val surfaceContainer = palette.n1.tone(if (isDark) 12 else 94)
-			val onSurface = palette.n1.tone(if (isDark) 90 else 10)
-			val outline = palette.n2.tone(if (isDark) 60 else 50)
+			val colors = CustomColorSchemeStore.resolvedColors(context, scheme)
+			val primary = colors.getValue(CustomColorRole.PRIMARY.key)
+			val secondary = colors.getValue(CustomColorRole.SECONDARY.key)
+			val surfaceContainer = colors.getValue(CustomColorRole.SURFACE_CONTAINER.key)
+			val onSurface = colors.getValue(CustomColorRole.ON_SURFACE.key)
+			val outline = colors.getValue(CustomColorRole.OUTLINE.key)
 
 			item.card.setCardBackgroundColor(surfaceContainer)
 			item.card.setStrokeColor(outline)

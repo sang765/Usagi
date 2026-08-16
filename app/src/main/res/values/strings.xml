@@ -372,7 +372,8 @@
     <string name="custom_color_scheme_editor">Custom color scheme</string>
     <string name="custom_color_scheme_name">Scheme name</string>
     <string name="custom_color_scheme_seed">Seed color</string>
-    <string name="custom_color_scheme_seed_summary">Choose a color to generate the Material 3 palette</string>
+    <string name="custom_color_scheme_seed_summary">Base color used to generate the initial Material 3 roles</string>
+    <string name="custom_color_scheme_roles">Material 3 color roles</string>
     <string name="custom_color_scheme_pick_color">Pick a color</string>
     <string name="custom_color_scheme_preview">Scheme preview</string>
     <string name="custom_color_scheme_save">Save scheme</string>
