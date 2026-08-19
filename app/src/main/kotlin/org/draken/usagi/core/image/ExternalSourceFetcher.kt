@@ -12,6 +12,7 @@ import eu.kanade.tachiyomi.source.online.HttpSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Request
+import okio.FileSystem
 import org.draken.usagi.core.model.unwrap
 import org.draken.usagi.core.util.ext.mangaSourceKey
 import coil3.Uri as CoilUri
@@ -20,7 +21,7 @@ import org.draken.tsukimix.core.parser.tachiyomi.model.Manga as External
 class ExternalSourceFetcher(
 	private val httpSource: HttpSource,
 	private val url: String,
-	private val options: Options,
+	private val fileSystem: FileSystem,
 ) : Fetcher {
 	override suspend fun fetch(): FetchResult {
 		val response =
@@ -35,7 +36,7 @@ class ExternalSourceFetcher(
 					).awaitSuccess()
 			}
 		return SourceFetchResult(
-			source = ImageSource(response.body.source(), options.fileSystem),
+			source = ImageSource(response.body.source(), fileSystem),
 			mimeType = response.body.contentType()?.toString(),
 			dataSource = DataSource.NETWORK,
 		)
@@ -50,7 +51,7 @@ class ExternalSourceFetcher(
 			if (data.scheme != "http" && data.scheme != "https") return null
 			val source = options.extras[mangaSourceKey]?.unwrap() as? External ?: return null
 			val httpSource = source.catalogueSource as? HttpSource ?: return null
-			return ExternalSourceFetcher(httpSource, data.toString(), options)
+			return ExternalSourceFetcher(httpSource, data.toString(), options.fileSystem)
 		}
 	}
 }
