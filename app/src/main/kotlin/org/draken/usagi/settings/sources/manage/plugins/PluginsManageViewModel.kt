@@ -123,56 +123,6 @@ class PluginsManageViewModel
 				.installPlugin(release, PluginFileLoader.resolve(fileName))
 				.also { if (it) refresh() }
 
-		fun importPlugin(
-			uri: Uri,
-			getOriginalName: (Uri) -> String?,
-			askName: suspend (String) -> String?,
-			askOverwrite: suspend (String) -> Boolean,
-			onResult: (Boolean) -> Unit,
-		) {
-			launchJob(Dispatchers.Default) {
-				val originalName = getOriginalName(uri) ?: "plugin_${System.currentTimeMillis()}.jar"
-				val pluginName = askName(originalName.removeSuffix(".jar"))?.trim().orEmpty()
-				if (pluginName.isBlank()) return@launchJob
-
-				val fileName = PluginFileLoader.resolve(pluginName)
-				if (isInstalled(fileName) && !askOverwrite(fileName)) return@launchJob
-
-				val success = importFromUri(uri, fileName)
-				withContext(Dispatchers.Main) { onResult(success) }
-			}
-		}
-
-		fun import(
-			askInput: suspend () -> String?,
-			askSelect: suspend (List<String>) -> Int?,
-			askOverwrite: suspend (String) -> Boolean,
-			onResult: (Boolean) -> Unit,
-		) {
-			launchJob(Dispatchers.Default) {
-				val input = askInput()?.trim()?.takeIf { it.isNotBlank() } ?: return@launchJob
-				val releases = resolveGithubReleases(input)
-				if (releases.isEmpty()) {
-					withContext(Dispatchers.Main) { onResult(false) }
-					return@launchJob
-				}
-
-				val select =
-					if (releases.size > 1) {
-						val index = askSelect(releases.map { it.fileName }) ?: return@launchJob
-						releases.getOrNull(index) ?: return@launchJob
-					} else {
-						releases.firstOrNull() ?: return@launchJob
-					}
-
-				val name = PluginFileLoader.resolve(select.fileName)
-				if (isInstalled(name) && !askOverwrite(name)) return@launchJob
-
-				val success = importFromGithub(select, name)
-				withContext(Dispatchers.Main) { onResult(success) }
-			}
-		}
-
 		suspend fun updatePlugin(item: PluginManageItem.Plugin): Boolean {
 			val repository = item.repository ?: return false
 			val release = resolveRelease(repository, item.name) ?: return false

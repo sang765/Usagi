@@ -52,13 +52,20 @@ class PluginsManageFragment :
 			ActivityResultContracts.OpenDocument(),
 		) { uri ->
 			if (uri != null && isAdded) {
-				viewModel.importPlugin(
-					uri = uri,
-					getOriginalName = { DocumentFile.fromSingleUri(requireContext().applicationContext, it)?.name },
-					askName = { askText(R.string.set_plugin_name, it, R.string.plugin_name) },
-					askOverwrite = ::askOverwrite,
-					onResult = ::showImportResult,
-				)
+				viewLifecycleOwner.lifecycleScope.launch {
+					val originalName =
+						withContext(Dispatchers.IO) {
+							DocumentFile.fromSingleUri(requireContext().applicationContext, uri)?.name
+						}.orEmpty().ifBlank { "plugin_${System.currentTimeMillis()}.jar" }
+					val pluginName =
+						askText(R.string.set_plugin_name, originalName.removeSuffix(".jar"), R.string.plugin_name)
+							?.trim()
+							.orEmpty()
+					if (pluginName.isBlank()) return@launch
+					val fileName = PluginFileLoader.resolve(pluginName)
+					if (viewModel.isInstalled(fileName) && !askOverwrite(fileName)) return@launch
+					showImportResult(viewModel.importFromUri(uri, fileName))
+				}
 			}
 		}
 
@@ -189,13 +196,27 @@ class PluginsManageFragment :
 		}
 		binding.buttonDir.setOnClickListener {
 			dialog.dismiss()
-			viewModel.import(
-				askInput = { askText(R.string.import_from_github, "", null) },
-				askSelect = ::askSelect,
-				askOverwrite = ::askOverwrite,
-				onResult = ::showImportResult,
-			)
+			viewLifecycleOwner.lifecycleScope.launch {
+				val input = askText(R.string.import_from_github, "", null)?.trim().orEmpty()
+				if (input.isBlank()) return@launch
+				val releases = viewModel.resolveGithubReleases(input)
+				if (releases.isEmpty()) {
+					showImportResult(false)
+					return@launch
+				}
+				val release =
+					if (releases.size == 1) {
+						releases.first()
+					} else {
+						val index = askSelect(releases.map { it.fileName }) ?: return@launch
+						releases.getOrNull(index) ?: return@launch
+					}
+				val fileName = PluginFileLoader.resolve(release.fileName)
+				if (viewModel.isInstalled(fileName) && !askOverwrite(fileName)) return@launch
+				showImportResult(viewModel.importFromGithub(release, fileName))
+			}
 		}
+
 		dialog.show()
 	}
 
