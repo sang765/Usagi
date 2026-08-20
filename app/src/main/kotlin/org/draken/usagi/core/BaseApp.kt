@@ -19,7 +19,6 @@ import okhttp3.internal.platform.PlatformRegistry
 import org.conscrypt.Conscrypt
 import org.draken.usagi.BuildConfig
 import org.draken.usagi.core.db.MangaDatabase
-import org.draken.usagi.core.model.MangaSourceRegistry
 import org.draken.usagi.core.model.PluginKeyResolver
 import org.draken.usagi.core.os.AppValidator
 import org.draken.usagi.core.parser.MangaDynamicRepository
@@ -34,8 +33,6 @@ import org.draken.usagi.settings.work.WorkScheduleManager
 import java.security.Security
 import javax.inject.Inject
 import javax.inject.Provider
-import org.draken.tsukimix.core.parser.tachiyomi.TachiyomiExtensionManager as ExternalManager
-import org.draken.tsukimix.core.parser.tachiyomi.model.TachiyomiMangaSource as External
 
 open class BaseApp :
 	Application(),
@@ -74,7 +71,7 @@ open class BaseApp :
 	lateinit var pluginKeyResolver: PluginKeyResolver
 
 	@Inject
-	lateinit var externalManager: ExternalManager
+	lateinit var tachiyomiRuntime: TachiyomiRuntime
 
 	@Inject
 	@LocalStorageChanges
@@ -105,13 +102,9 @@ open class BaseApp :
 				localStorageChanges.collect(localMangaIndexProvider.get())
 			}
 			launch {
-				externalManager.sources.collect {
-					val e = MangaSourceRegistry.sources.filterNot { it is External }
-					MangaSourceRegistry.publish(e + externalManager.getActiveSources())
-				}
+				tachiyomiRuntime.start()
 			}
 			mangaDynamicRepository.load(mangaDynamicRepository.getDir())
-			externalManager.ensureReady()
 			withContext(Dispatchers.Default) {
 				pluginKeyResolver.normalize(database.get(), savedFiltersRepository)
 			}
