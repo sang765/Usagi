@@ -1,9 +1,7 @@
 package org.draken.usagi.settings.sources.manage.plugins
 
-import android.content.Context
 import android.net.Uri
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -11,29 +9,18 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 import org.draken.usagi.R
-import org.draken.usagi.core.db.MangaDatabase
-import org.draken.usagi.core.model.PluginKeyResolver
-import org.draken.usagi.core.parser.MangaDynamicRepository
-import org.draken.usagi.core.parser.PluginFileLoader
 import org.draken.usagi.core.prefs.AppSettings
 import org.draken.usagi.core.ui.BaseViewModel
-import org.draken.usagi.filter.data.SavedFiltersRepository
 import org.draken.usagi.settings.sources.manage.plugins.model.PluginManageItem
-import tsuki.util.runCatchingCancellable
-import java.io.File
 import javax.inject.Inject
 
 @HiltViewModel
 class PluginsManageViewModel
 	@Inject
 	constructor(
-		@param:ApplicationContext private val context: Context,
-		private val database: MangaDatabase,
-		private val savedFiltersRepository: SavedFiltersRepository,
 		private val updatePluginsProvider: UpdatePluginsProvider,
+		private val pluginSideloadUseCase: PluginSideloadUseCase,
 		private val settings: AppSettings,
-		private val mangaDynamicRepository: MangaDynamicRepository,
-		private val pluginKeyResolver: PluginKeyResolver,
 	) : BaseViewModel() {
 		val content = MutableStateFlow<List<PluginManageItem>>(emptyList())
 		val selectedPlugins = MutableStateFlow<Set<String>>(emptySet())
@@ -104,24 +91,12 @@ class PluginsManageViewModel
 		suspend fun importFromUri(
 			uri: Uri,
 			fileName: String,
-		): Boolean =
-			withContext(Dispatchers.Default) {
-				val safeName = PluginFileLoader.resolve(fileName)
-				runCatchingCancellable {
-					val pluginsDir = mangaDynamicRepository.getDir()
-					PluginFileLoader.copyFromUri(context, uri, File(pluginsDir, safeName))
-					updatePluginsProvider.clearDto(safeName)
-					reloadPlugins(pluginsDir)
-				}.isSuccess
-			}.also { if (it) refresh() }
+		): Boolean = pluginSideloadUseCase.importFromUri(uri, fileName).also { if (it) refresh() }
 
 		suspend fun importFromGithub(
 			release: ExternalPluginDto,
 			fileName: String = release.fileName,
-		): Boolean =
-			updatePluginsProvider
-				.installPlugin(release, PluginFileLoader.resolve(fileName))
-				.also { if (it) refresh() }
+		): Boolean = pluginSideloadUseCase.importFromGithub(release, fileName).also { if (it) refresh() }
 
 		suspend fun updatePlugin(item: PluginManageItem.Plugin): Boolean {
 			val repository = item.repository ?: return false
@@ -146,46 +121,19 @@ class PluginsManageViewModel
 		fun isSelected(jarName: String): Boolean = jarName in selectedPlugins.value
 
 		suspend fun delete(): Boolean =
-			withContext(Dispatchers.Default) {
-				val select = selectedPlugins.value
-				if (select.isEmpty()) return@withContext false
-				var allSuccess = true
-				for (jar in select) {
-					try {
-						mangaDynamicRepository.deletePlugin(jar)
-						updatePluginsProvider.clearDto(jar)
-					} catch (_: Throwable) {
-						allSuccess = false
-					}
+			pluginSideloadUseCase.delete(selectedPlugins.value).also {
+				if (it) {
+					selectedPlugins.value = emptySet()
+					refresh()
 				}
-				selectedPlugins.value = emptySet()
-				reloadPlugins(mangaDynamicRepository.getDir())
-				allSuccess
-			}.also { if (it) refresh() }
+			}
 
 		suspend fun rename(
 			item: PluginManageItem.Plugin,
 			newRawName: String,
-		): Boolean =
-			withContext(Dispatchers.Default) {
-				val name = PluginFileLoader.resolve(newRawName)
-				if (name == item.name) return@withContext true
-				val pluginsDir = mangaDynamicRepository.getDir()
-				val old = File(pluginsDir, item.name)
-				val new = File(pluginsDir, name)
-				if (new.exists()) return@withContext false
-				runCatchingCancellable {
-					if (old.exists() && old.renameTo(new)) {
-						updatePluginsProvider.renameDto(item.name, name)
-						reloadPlugins(pluginsDir)
-						true
-					} else {
-						false
-					}
-				}.getOrDefault(false)
-			}.also { if (it) refresh() }
+		): Boolean = pluginSideloadUseCase.rename(item.name, newRawName).also { if (it) refresh() }
 
-		fun isInstalled(fileName: String): Boolean = File(mangaDynamicRepository.getDir(), PluginFileLoader.resolve(fileName)).exists()
+		fun isInstalled(fileName: String): Boolean = pluginSideloadUseCase.isInstalled(fileName)
 
 		private fun publishFiltered() {
 			val all = pluginsSnapshot
@@ -216,7 +164,7 @@ class PluginsManageViewModel
 		}
 
 		private fun loadPluginsLocal(): List<PluginManageItem.Plugin> {
-			val plugins = mangaDynamicRepository.get().sorted()
+			val plugins = pluginSideloadUseCase.listInstalled()
 			if (plugins.isEmpty()) return emptyList()
 			val meta = updatePluginsProvider.readAndCleanDto(plugins.toSet())
 
@@ -229,10 +177,5 @@ class PluginsManageViewModel
 					latestTag = null,
 				)
 			}
-		}
-
-		private suspend fun reloadPlugins(pluginsDir: File) {
-			mangaDynamicRepository.load(pluginsDir)
-			pluginKeyResolver.normalize(database, savedFiltersRepository)
 		}
 	}
