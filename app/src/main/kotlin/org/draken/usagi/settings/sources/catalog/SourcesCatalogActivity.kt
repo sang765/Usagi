@@ -13,7 +13,6 @@ import androidx.core.view.updatePadding
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.chip.Chip
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.combine
 import org.draken.usagi.R
 import org.draken.usagi.core.model.titleResId
 import org.draken.usagi.core.nav.router
@@ -62,9 +61,7 @@ class SourcesCatalogActivity :
 			this,
 			ReversibleActionObserver(viewBinding.recyclerView),
 		)
-		combine(viewModel.appliedFilter, viewModel.hasNewSources, viewModel.contentTypes, ::Triple).observe(this) {
-			updateFilers(it.first, it.second, it.third)
-		}
+		viewModel.uiState.observe(this, ::updateFilters)
 		addMenuProvider(SourcesCatalogMenuProvider(this, viewModel, this))
 	}
 
@@ -137,11 +134,10 @@ class SourcesCatalogActivity :
 		return true
 	}
 
-	private fun updateFilers(
-		appliedFilter: SourcesCatalogFilter,
-		hasNewSources: Boolean,
-		contentTypes: List<ContentType>,
-	) {
+	private fun updateFilters(state: SourcesCatalogUiState) {
+		val appliedFilter = state.appliedFilter
+		val hasNewSources = state.hasNewSources
+		val contentTypes = state.contentTypes
 		val chips = ArrayList<ChipModel>(contentTypes.size + 3)
 		chips +=
 			ChipModel(

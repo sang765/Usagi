@@ -45,7 +45,7 @@ class SourcesCatalogViewModel
 			}
 
 		private val searchQuery = MutableStateFlow<String?>(null)
-		val appliedFilter =
+		private val appliedFilter =
 			MutableStateFlow(
 				SourcesCatalogFilter(
 					types = emptySet(),
@@ -55,7 +55,8 @@ class SourcesCatalogViewModel
 				),
 			)
 
-		val hasNewSources =
+		private val hasNewSources =
+
 			repository
 				.observeHasNewSources()
 				.stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Lazily, false)
@@ -69,9 +70,22 @@ class SourcesCatalogViewModel
 					)?.jarName
 				}.sorted()
 
-		val contentTypes = MutableStateFlow<List<ContentType>>(emptyList())
+		private val contentTypes = MutableStateFlow<List<ContentType>>(emptyList())
+
+		val uiState: StateFlow<SourcesCatalogUiState> =
+			combine(appliedFilter, hasNewSources, contentTypes, ::SourcesCatalogUiState)
+				.stateIn(
+					viewModelScope + Dispatchers.Default,
+					SharingStarted.Eagerly,
+					SourcesCatalogUiState(
+						appliedFilter = appliedFilter.value,
+						hasNewSources = hasNewSources.value,
+						contentTypes = contentTypes.value,
+					),
+				)
 
 		val content: StateFlow<List<ListModel>> =
+
 			combine(
 				searchQuery,
 				appliedFilter,
