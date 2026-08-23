@@ -1,7 +1,13 @@
 package org.draken.usagi.core
 
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import org.draken.tsukimix.core.parser.tachiyomi.DirectTachiyomiExtensionManager
+import org.draken.tsukimix.core.parser.tachiyomi.DirectTachiyomiInstalled
+import org.draken.tsukimix.core.parser.tachiyomi.TachiyomiExtensionArtifact
 import org.draken.tsukimix.core.parser.tachiyomi.TachiyomiExtensionManager
 import org.draken.tsukimix.core.parser.tachiyomi.model.TachiyomiLoadResult
 import org.draken.tsukimix.core.parser.tachiyomi.model.TachiyomiMangaSource
@@ -9,18 +15,13 @@ import org.draken.usagi.core.model.MangaSourceRegistry
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Application-scoped boundary for the Tachiyomi runtime.
- *
- * UI controllers should consume this facade through a ViewModel instead of
- * depending on the extension manager or publishing directly to the source
- * registry. The manager itself remains owned by the application DI graph.
- */
+/** Application-scoped boundary for both installed and direct Tachiyomi runtimes. */
 @Singleton
 class TachiyomiRuntime
 	@Inject
 	constructor(
 		private val manager: TachiyomiExtensionManager,
+		private val directManager: DirectTachiyomiExtensionManager,
 	) {
 		val installedExtensions: StateFlow<List<TachiyomiLoadResult.Success>>
 			get() = manager.installedExtensions
@@ -37,26 +38,43 @@ class TachiyomiRuntime
 		val sources: StateFlow<List<TachiyomiMangaSource>>
 			get() = manager.sources
 
+		val directSources: StateFlow<List<TachiyomiMangaSource>>
+			get() = directManager.sources
+
+		val directInstalled: StateFlow<List<DirectTachiyomiInstalled>>
+			get() = directManager.installed
+
 		suspend fun ensureReady(forceRefresh: Boolean = false) {
 			manager.ensureReady(forceRefresh)
+			directManager.ensureReady(forceRefresh)
 			publishActiveSources()
 		}
 
-		/**
-		 * Keeps the shared source registry synchronized for the application
-		 * lifetime. The returned collection is cancelled with the caller's scope.
-		 */
-		suspend fun start() {
-			manager.ensureReady()
-			manager.sources.collectLatest { publishActiveSources() }
-		}
+		/** Keeps the shared source registry synchronized for the application lifetime. */
+		suspend fun start(): Nothing =
+			coroutineScope {
+				launch {
+					manager.sources.collectLatest { publishActiveSources() }
+				}
+				launch {
+					directManager.sources.collectLatest { publishActiveSources() }
+				}
+				manager.ensureReady()
+				directManager.ensureReady()
+				awaitCancellation()
+			}
 
-		fun getSourceById(sourceId: Long): TachiyomiMangaSource? = manager.getSourceById(sourceId)
+		fun getSourceById(sourceId: Long): TachiyomiMangaSource? = directManager.getSourceById(sourceId) ?: manager.getSourceById(sourceId)
 
-		fun resolve(source: TachiyomiMangaSource): TachiyomiMangaSource = manager.resolve(source)
+		fun getSourceByName(name: String): TachiyomiMangaSource? = directManager.getSourceByName(name) ?: manager.getSourceByName(name)
+
+		fun resolve(source: TachiyomiMangaSource): TachiyomiMangaSource = if (directManager.owns(source)) directManager.resolve(source) else manager.resolve(source)
+
+		suspend fun install(artifact: TachiyomiExtensionArtifact): Boolean = directManager.install(artifact).also { if (it) publishActiveSources() }
 
 		private fun publishActiveSources() {
 			val nativeSources = MangaSourceRegistry.sources.filterNot { it is TachiyomiMangaSource }
-			MangaSourceRegistry.publish(nativeSources + manager.getActiveSources())
+			val tachiyomiSources = (manager.getActiveSources() + directManager.getActiveSources()).distinctBy { it.name }
+			MangaSourceRegistry.publish(nativeSources + tachiyomiSources)
 		}
 	}

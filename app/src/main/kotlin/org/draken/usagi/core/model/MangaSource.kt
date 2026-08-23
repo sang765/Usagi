@@ -18,6 +18,7 @@ import tsuki.model.ContentType
 import tsuki.model.MangaSource
 import tsuki.util.splitTwoParts
 import java.util.Locale
+import org.draken.tsukimix.core.parser.tachiyomi.DirectTachiyomiExtensionManager as DirectExternalManager
 import org.draken.tsukimix.core.parser.tachiyomi.TachiyomiExtensionManager as ExternalManager
 import org.draken.tsukimix.core.parser.tachiyomi.model.TachiyomiMangaSource as ExternalSource
 
@@ -75,6 +76,7 @@ fun MangaSource(name: String?): MangaSource {
 		val parts = name.substringAfter(':').splitTwoParts('/') ?: return UnknownMangaSource
 		return ExternalMangaSource(packageName = parts.first, authority = parts.second)
 	} else if (name.startsWith("EXTERNAL_")) {
+		DirectExternalManager.getByName(name)?.let { return it }
 		ExternalManager.getByName(name)?.let { return it } // tachi
 	}
 	MangaSourceRegistry.resolveByName(name)?.let { return it }
