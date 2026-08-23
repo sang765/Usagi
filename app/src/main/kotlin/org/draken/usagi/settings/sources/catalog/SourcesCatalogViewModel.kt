@@ -70,7 +70,7 @@ class SourcesCatalogViewModel
 			get() =
 				if (isExternalCatalog) {
 					buildSet {
-						externalArtifacts.value.flatMapTo(this) { artifact -> artifact.sources.map { normalizeLanguage(it.language) } }
+						externalArtifacts.value.flatMapTo(this) { artifact -> artifact.sources.map { normalizeTachiyomiLanguage(it.language) } }
 						add(null)
 					}
 				} else {
