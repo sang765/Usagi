@@ -1,6 +1,7 @@
 package org.draken.usagi.settings.sources.catalog
 
 import android.content.Context
+import android.view.View
 import org.draken.usagi.core.model.getTitle
 import org.draken.usagi.core.ui.BaseListAdapter
 import org.draken.usagi.core.ui.list.OnListItemClickListener
@@ -11,10 +12,13 @@ import org.draken.usagi.list.ui.model.ListModel
 
 class SourcesCatalogAdapter(
 	listener: OnListItemClickListener<SourceCatalogItem.Source>,
+	onTachiyomiClick: (SourceCatalogItem.Tachiyomi, View) -> Unit,
+	onTachiyomiInstall: (SourceCatalogItem.Tachiyomi, View) -> Unit,
 ) : BaseListAdapter<ListModel>(),
 	FastScroller.SectionIndexer {
 	init {
 		addDelegate(ListItemType.CHAPTER_LIST, sourceCatalogItemSourceAD(listener))
+		addDelegate(ListItemType.INFO, sourceCatalogItemTachiyomiAD(onTachiyomiClick, onTachiyomiInstall))
 		addDelegate(ListItemType.HINT_EMPTY, sourceCatalogItemHintAD())
 		addDelegate(ListItemType.STATE_LOADING, loadingStateAD())
 	}

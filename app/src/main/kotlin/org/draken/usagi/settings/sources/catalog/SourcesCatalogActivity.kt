@@ -10,9 +10,12 @@ import androidx.appcompat.widget.SearchView
 import androidx.core.graphics.Insets
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.chip.Chip
+import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import org.draken.usagi.R
 import org.draken.usagi.core.model.titleResId
 import org.draken.usagi.core.nav.router
@@ -48,7 +51,15 @@ class SourcesCatalogActivity :
 		super.onCreate(savedInstanceState)
 		setContentView(ActivitySourcesCatalogBinding.inflate(layoutInflater))
 		setDisplayHomeAsUp(isEnabled = true, showUpAsClose = false)
-		val sourcesAdapter = SourcesCatalogAdapter(this)
+		val externalTitle = intent.getStringExtra(EXTRA_EXTERNAL_REPOSITORY_TITLE)
+		if (!externalTitle.isNullOrBlank()) title = externalTitle
+		intent.getStringExtra(EXTRA_EXTERNAL_REPOSITORY_URL)?.let(viewModel::openExternalRepository)
+		val sourcesAdapter =
+			SourcesCatalogAdapter(
+				listener = this,
+				onTachiyomiClick = ::openTachiyomiSource,
+				onTachiyomiInstall = ::installTachiyomi,
+			)
 		with(viewBinding.recyclerView) {
 			setHasFixedSize(true)
 			addItemDecoration(TypedListSpacingDecoration(context, false))
@@ -75,20 +86,9 @@ class SourcesCatalogActivity :
 		insets: WindowInsetsCompat,
 	): WindowInsetsCompat {
 		val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-		viewBinding.recyclerView.updatePadding(
-			left = bars.left,
-			right = bars.right,
-			bottom = bars.bottom,
-		)
-		viewBinding.appbar.updatePadding(
-			left = bars.left,
-			right = bars.right,
-			top = bars.top,
-		)
-		return WindowInsetsCompat
-			.Builder(insets)
-			.setInsets(WindowInsetsCompat.Type.systemBars(), Insets.NONE)
-			.build()
+		viewBinding.recyclerView.updatePadding(left = bars.left, right = bars.right, bottom = bars.bottom)
+		viewBinding.appbar.updatePadding(left = bars.left, right = bars.right, top = bars.top)
+		return WindowInsetsCompat.Builder(insets).setInsets(WindowInsetsCompat.Type.systemBars(), Insets.NONE).build()
 	}
 
 	override fun onChipClick(
@@ -134,11 +134,26 @@ class SourcesCatalogActivity :
 		return true
 	}
 
+	private fun openTachiyomiSource(
+		item: SourceCatalogItem.Tachiyomi,
+		view: View,
+	) {
+		viewModel.getImportedTachiyomiSource(item)?.let { router.openList(it, null, null) }
+	}
+
+	private fun installTachiyomi(
+		item: SourceCatalogItem.Tachiyomi,
+		view: View,
+	) {
+		lifecycleScope.launch {
+			val success = viewModel.installTachiyomi(item)
+			Snackbar.make(view, if (success) R.string.load_success else R.string.load_failed, Snackbar.LENGTH_LONG).show()
+		}
+	}
+
 	private fun updateFilters(state: SourcesCatalogUiState) {
 		val appliedFilter = state.appliedFilter
-		val hasNewSources = state.hasNewSources
-		val contentTypes = state.contentTypes
-		val chips = ArrayList<ChipModel>(contentTypes.size + 3)
+		val chips = ArrayList<ChipModel>(state.contentTypes.size + 3)
 		chips +=
 			ChipModel(
 				title = appliedFilter.plugin?.removeSuffix(".jar") ?: getString(R.string.any),
@@ -152,7 +167,7 @@ class SourcesCatalogActivity :
 				icon = R.drawable.ic_language,
 				isDropdown = true,
 			)
-		if (hasNewSources) {
+		if (state.hasNewSources) {
 			chips +=
 				ChipModel(
 					title = getString(R.string._new),
@@ -161,26 +176,17 @@ class SourcesCatalogActivity :
 					data = true,
 				)
 		}
-		contentTypes.mapTo(chips) { type ->
-			ChipModel(
-				title = getString(type.titleResId),
-				isChecked = type in appliedFilter.types,
-				data = type,
-			)
+		state.contentTypes.mapTo(chips) { type ->
+			ChipModel(title = getString(type.titleResId), isChecked = type in appliedFilter.types, data = type)
 		}
 		viewBinding.chipsFilter.setChips(chips)
 	}
 
 	private fun showLocalesMenu(anchor: View) {
-		val locales =
-			viewModel.locales.mapTo(ArrayList(viewModel.locales.size)) {
-				it to it?.toLocale()
-			}
+		val locales = viewModel.locales.mapTo(ArrayList(viewModel.locales.size)) { it to it?.toLocale() }
 		locales.sortWith(compareBy(nullsFirst(LocaleComparator())) { it.second })
 		val menu = PopupMenu(this, anchor)
-		for ((i, lc) in locales.withIndex()) {
-			menu.menu.add(Menu.NONE, Menu.NONE, i, lc.second.getDisplayName(this))
-		}
+		for ((i, lc) in locales.withIndex()) menu.menu.add(Menu.NONE, Menu.NONE, i, lc.second.getDisplayName(this))
 		menu.setOnMenuItemClickListener {
 			viewModel.setLocale(locales.getOrNull(it.order)?.first)
 			true
@@ -191,14 +197,17 @@ class SourcesCatalogActivity :
 	private fun showPluginsMenu(anchor: View) {
 		val menu = PopupMenu(this, anchor)
 		menu.menu.add(Menu.NONE, Menu.NONE, 0, getString(R.string.any))
-		for ((i, plugin) in viewModel.plugins.withIndex()) {
-			menu.menu.add(Menu.NONE, Menu.NONE, i + 1, plugin.removeSuffix(".jar"))
-		}
+		for ((i, plugin) in viewModel.plugins.withIndex()) menu.menu.add(Menu.NONE, Menu.NONE, i + 1, plugin.removeSuffix(".jar"))
 		menu.setOnMenuItemClickListener {
-			val p = if (it.order == 0) null else viewModel.plugins[it.order - 1]
-			viewModel.setPlugin(p)
+			val plugin = if (it.order == 0) null else viewModel.plugins[it.order - 1]
+			viewModel.setPlugin(plugin)
 			true
 		}
 		menu.show()
+	}
+
+	companion object {
+		const val EXTRA_EXTERNAL_REPOSITORY_URL = "external_repository_url"
+		const val EXTRA_EXTERNAL_REPOSITORY_TITLE = "external_repository_title"
 	}
 }

@@ -10,7 +10,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.plus
+import org.draken.tsukimix.core.parser.tachiyomi.TachiyomiCatalogSource
+import org.draken.tsukimix.core.parser.tachiyomi.TachiyomiExtensionArtifact
 import org.draken.usagi.R
+import org.draken.usagi.core.TachiyomiRuntime
 import org.draken.usagi.core.db.MangaDatabase
 import org.draken.usagi.core.db.TABLE_SOURCES
 import org.draken.usagi.core.model.MangaSourceInfo
@@ -24,6 +27,7 @@ import org.draken.usagi.explore.data.MangaSourcesRepository
 import org.draken.usagi.explore.data.SourcesSortOrder
 import org.draken.usagi.list.ui.model.ListModel
 import org.draken.usagi.list.ui.model.LoadingState
+import org.draken.usagi.settings.sources.manage.plugins.TachiyomiCatalogRepository
 import tsuki.model.ContentType
 import tsuki.model.MangaSource
 import java.util.EnumSet
@@ -36,14 +40,15 @@ class SourcesCatalogViewModel
 	constructor(
 		private val repository: MangaSourcesRepository,
 		db: MangaDatabase,
-		settings: AppSettings,
+		private val settings: AppSettings,
+		private val tachiyomiCatalogRepository: TachiyomiCatalogRepository,
+		private val tachiyomiRuntime: TachiyomiRuntime,
 	) : BaseViewModel() {
 		val onActionDone = MutableEventFlow<ReversibleAction>()
-		val locales: Set<String?> =
-			repository.allMangaSources.mapTo(HashSet<String?>()) { it.locale }.also {
-				it.add(null)
-			}
 
+		private val externalRepositoryUrl = MutableStateFlow<String?>(null)
+		private val externalArtifacts = MutableStateFlow<List<TachiyomiExtensionArtifact>>(emptyList())
+		private val externalLoading = MutableStateFlow(false)
 		private val searchQuery = MutableStateFlow<String?>(null)
 		private val appliedFilter =
 			MutableStateFlow(
@@ -55,20 +60,42 @@ class SourcesCatalogViewModel
 				),
 			)
 
-		private val hasNewSources =
+		val isExternalCatalog: Boolean
+			get() = externalRepositoryUrl.value != null
 
-			repository
-				.observeHasNewSources()
-				.stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Lazily, false)
+		val externalCatalogTitle: String?
+			get() = externalRepositoryUrl.value?.let { tachiyomiCatalogRepository.savedRepositories().firstOrNull { item -> item.url == it }?.title }
 
-		val plugins =
-			repository.allMangaSources
-				.mapNotNullTo(HashSet()) {
-					(
-						it as? org.draken.usagi.core.model.PluginMangaSource
-							?: (it as? MangaSourceInfo)?.mangaSource as? org.draken.usagi.core.model.PluginMangaSource
-					)?.jarName
-				}.sorted()
+		val locales: Set<String?>
+			get() =
+				if (isExternalCatalog) {
+					buildSet {
+						externalArtifacts.value.flatMapTo(this) { artifact -> artifact.sources.map { normalizeLanguage(it.language) } }
+						add(null)
+					}
+				} else {
+					repository.allMangaSources.mapTo(HashSet<String?>()) { it.locale }.also { it.add(null) }
+				}
+
+		private val hasNativeNewSources =
+			repository.observeHasNewSources().stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Lazily, false)
+		val hasNewSources: StateFlow<Boolean> =
+			combine(hasNativeNewSources, externalRepositoryUrl) { hasNew, url -> hasNew && url == null }
+				.stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Eagerly, false)
+
+		val plugins: List<String>
+			get() =
+				if (isExternalCatalog) {
+					emptyList()
+				} else {
+					repository.allMangaSources
+						.mapNotNullTo(HashSet()) {
+							(
+								it as? org.draken.usagi.core.model.PluginMangaSource
+									?: (it as? MangaSourceInfo)?.mangaSource as? org.draken.usagi.core.model.PluginMangaSource
+							)?.jarName
+						}.sorted()
+				}
 
 		private val contentTypes = MutableStateFlow<List<ContentType>>(emptyList())
 
@@ -85,19 +112,40 @@ class SourcesCatalogViewModel
 				)
 
 		val content: StateFlow<List<ListModel>> =
-
 			combine(
-				searchQuery,
-				appliedFilter,
+				combine(searchQuery, appliedFilter, externalRepositoryUrl, externalArtifacts, externalLoading) { query, filter, url, artifacts, loading ->
+					if (url != null) {
+						if (loading) listOf(LoadingState) else buildExternalSourcesList(filter, query, artifacts)
+					} else {
+						buildSourcesList(filter, query)
+					}
+				},
 				db.invalidationTracker.createFlow(TABLE_SOURCES),
-			) { q, f, _ ->
-				buildSourcesList(f, q)
-			}.stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Eagerly, listOf(LoadingState))
+			) { items, _ -> items }
+				.stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Eagerly, listOf(LoadingState))
 
 		init {
 			repository.clearNewSourcesBadge()
 			launchJob(Dispatchers.Default) {
-				contentTypes.value = getContentTypes(settings.isNsfwContentDisabled)
+				contentTypes.value = getNativeContentTypes(settings.isNsfwContentDisabled)
+			}
+		}
+
+		fun openExternalRepository(url: String) {
+			val normalized = url.trim()
+			if (normalized.isBlank()) return
+			externalRepositoryUrl.value = normalized
+			externalLoading.value = true
+			launchJob(Dispatchers.IO) {
+				val cached = tachiyomiCatalogRepository.loadCached(normalized)
+				externalArtifacts.value = cached
+				contentTypes.value = getExternalContentTypes(cached)
+				runCatching { tachiyomiCatalogRepository.load(normalized) }
+					.onSuccess { artifacts ->
+						externalArtifacts.value = artifacts
+						contentTypes.value = getExternalContentTypes(artifacts)
+					}
+				externalLoading.value = false
 			}
 		}
 
@@ -116,6 +164,13 @@ class SourcesCatalogViewModel
 			}
 		}
 
+		suspend fun installTachiyomi(item: SourceCatalogItem.Tachiyomi): Boolean =
+			tachiyomiRuntime.install(item.artifact).also { success ->
+				if (success) externalArtifacts.value = externalArtifacts.value.toList()
+			}
+
+		fun getImportedTachiyomiSource(item: SourceCatalogItem.Tachiyomi): MangaSource? = tachiyomiRuntime.getSourceById(item.source.id)
+
 		fun setContentType(
 			value: ContentType,
 			isAdd: Boolean,
@@ -123,11 +178,7 @@ class SourcesCatalogViewModel
 			val filter = appliedFilter.value
 			val types = EnumSet.noneOf(ContentType::class.java)
 			types.addAll(filter.types)
-			if (isAdd) {
-				types.add(value)
-			} else {
-				types.remove(value)
-			}
+			if (isAdd) types.add(value) else types.remove(value)
 			appliedFilter.value = filter.copy(types = types)
 		}
 
@@ -154,36 +205,58 @@ class SourcesCatalogViewModel
 					plugin = filter.plugin,
 					sortOrder = SourcesSortOrder.ALPHABETIC,
 				)
-			return if (sources.isEmpty()) {
-				listOf(
-					if (query == null) {
-						SourceCatalogItem.Hint(
-							icon = R.drawable.ic_empty_feed,
-							title = R.string.no_manga_sources,
-							text = R.string.no_manga_sources_catalog_text,
-						)
-					} else {
-						SourceCatalogItem.Hint(
-							icon = R.drawable.ic_empty_feed,
-							title = R.string.nothing_found,
-							text = R.string.no_manga_sources_found,
-						)
-					},
-				)
-			} else {
-				sources.map {
-					SourceCatalogItem.Source(source = it)
-				}
-			}
+			return emptyState(sources.map { SourceCatalogItem.Source(it) }, query)
 		}
 
 		@WorkerThread
-		private fun getContentTypes(isNsfwDisabled: Boolean): List<ContentType> {
-			val result = repository.allMangaSources.mapSortedByCount { it.contentType }
-			return if (isNsfwDisabled) {
-				result.filterNot { it == ContentType.HENTAI }
-			} else {
-				result
-			}
+		private fun buildExternalSourcesList(
+			filter: SourcesCatalogFilter,
+			query: String?,
+			artifacts: List<TachiyomiExtensionArtifact>,
+		): List<SourceCatalogItem> {
+			val installed = tachiyomiRuntime.directInstalled.value.associateBy { it.packageName }
+			val sources =
+				artifacts
+					.asSequence()
+					.filter { artifact -> filter.plugin == null || artifact.repositoryUrl == filter.plugin }
+					.flatMap { artifact ->
+						artifact.sources.asSequence().mapNotNull { source ->
+							if (settings.isNsfwContentDisabled && source.contentType == ContentType.HENTAI) return@mapNotNull null
+							if (!matchesTachiyomiCatalogSource(source, artifact, query, filter.locale, filter.types)) return@mapNotNull null
+							SourceCatalogItem.Tachiyomi(source, artifact, installed[artifact.packageName])
+						}
+					}.sortedBy { it.displayName.lowercase(Locale.ROOT) }
+					.toList()
+			return emptyState(sources, query)
 		}
+
+		private fun emptyState(
+			sources: List<SourceCatalogItem>,
+			query: String?,
+		): List<SourceCatalogItem> =
+			if (sources.isNotEmpty()) {
+				sources
+			} else {
+				listOf(
+					if (query == null) {
+						SourceCatalogItem.Hint(R.drawable.ic_empty_feed, R.string.no_manga_sources, R.string.no_manga_sources_catalog_text)
+					} else {
+						SourceCatalogItem.Hint(R.drawable.ic_empty_feed, R.string.nothing_found, R.string.no_manga_sources_found)
+					},
+				)
+			}
+
+		@WorkerThread
+		private fun getNativeContentTypes(isNsfwDisabled: Boolean): List<ContentType> {
+			val result = repository.allMangaSources.mapSortedByCount { it.contentType }
+			return if (isNsfwDisabled) result.filterNot { it == ContentType.HENTAI } else result
+		}
+
+		private fun getExternalContentTypes(artifacts: List<TachiyomiExtensionArtifact>): List<ContentType> =
+			artifacts
+				.flatMap { it.sources }
+				.map { it.contentType }
+				.filterNot { settings.isNsfwContentDisabled && it == ContentType.HENTAI }
+				.distinct()
+				.sortedBy { it.ordinal }
 	}
