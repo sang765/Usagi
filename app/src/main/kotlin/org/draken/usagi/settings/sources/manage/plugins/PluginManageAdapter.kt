@@ -35,70 +35,41 @@ class PluginManageAdapter(
 		onLongClick: (PluginManageItem.Plugin) -> Unit,
 		onClick: (PluginManageItem.Plugin) -> Unit,
 		isSelected: (PluginManageItem.Plugin) -> Boolean,
-	) = adapterDelegateViewBinding<PluginManageItem, ListModel, ItemSourceConfigBinding>(
+	) = adapterDelegateViewBinding<PluginManageItem.Plugin, ListModel, ItemSourceConfigBinding>(
 		{ layoutInflater, parent -> ItemSourceConfigBinding.inflate(layoutInflater, parent, false) },
-		{ item, _, _ -> item is PluginManageItem.Plugin || item is PluginManageItem.Remote },
 	) {
+		binding.imageViewIcon.setImageResource(R.drawable.ic_services)
+		binding.imageViewIcon.background = null
+		binding.imageViewMenu.isVisible = true
+		binding.imageViewMenu.setImageResource(R.drawable.ic_edit)
+		binding.imageViewMenu.contentDescription = context.getString(R.string.rename)
+		binding.imageViewMenu.setOnClickListener { onRenameClick(item) }
+		binding.imageViewMenu.setOnTouchListener(null)
+		binding.imageViewRemove.isVisible = false
+		binding.imageViewRemove.setOnTouchListener(null)
+		binding.imageViewRemove.setOnClickListener(null)
+		binding.imageViewAdd.setImageResource(R.drawable.ic_download)
+		binding.imageViewAdd.contentDescription = context.getString(R.string.update)
+
+		itemView.setOnLongClickListener {
+			onLongClick(item)
+			true
+		}
+		itemView.setOnClickListener {
+			onClick(item)
+		}
+
 		bind {
-			when (val current = item) {
-				is PluginManageItem.Plugin -> {
-					binding.imageViewIcon.setImageResource(R.drawable.ic_services)
-					binding.imageViewIcon.background = null
-					binding.imageViewMenu.isVisible = true
-					binding.imageViewMenu.setImageResource(R.drawable.ic_edit)
-					binding.imageViewMenu.contentDescription = context.getString(R.string.rename)
-					binding.imageViewMenu.setOnClickListener { onRenameClick(current) }
-					binding.imageViewMenu.setOnTouchListener(null)
-					binding.imageViewRemove.isVisible = false
-					binding.imageViewRemove.setOnTouchListener(null)
-					binding.imageViewRemove.setOnClickListener(null)
-					binding.imageViewAdd.setImageResource(R.drawable.ic_download)
-					binding.imageViewAdd.contentDescription = context.getString(R.string.update)
-					itemView.isSelected = isSelected(current)
-					itemView.setOnLongClickListener {
-						onLongClick(current)
-						true
-					}
-					itemView.setOnClickListener { onClick(current) }
-					binding.textViewTitle.text = current.displayName
-					val parts = ArrayList<String>(3)
-					current.repository?.takeIf { it.isNotBlank() }?.let(parts::add)
-					current.installedTag?.takeIf { it.isNotBlank() }?.let(parts::add)
-					binding.textViewDescription.text = if (parts.isEmpty()) current.name else parts.joinToString(" • ")
-					binding.imageViewAdd.isVisible = current.hasUpdate
-					binding.imageViewAdd.setOnClickListener(
-						if (current.hasUpdate) View.OnClickListener { onUpdateClick(current) } else null,
-					)
-				}
-
-				is PluginManageItem.Remote -> {
-					binding.imageViewIcon.setImageResource(R.drawable.ic_services)
-					binding.imageViewIcon.background = null
-					binding.imageViewMenu.isVisible = false
-					binding.imageViewMenu.setOnClickListener(null)
-					binding.imageViewRemove.isVisible = false
-					binding.imageViewAdd.isVisible = false
-					binding.imageViewAdd.setOnClickListener(null)
-					itemView.isSelected = false
-					itemView.setOnLongClickListener(null)
-					itemView.setOnClickListener(null)
-					binding.textViewTitle.text = current.displayName
-					val details =
-						buildList {
-							add(current.repository)
-							current.versionName?.takeIf { it.isNotBlank() }?.let(::add)
-							current.versionCode?.takeIf { it.isNotBlank() }?.let { add("code $it") }
-							current.languages.takeIf { it.isNotEmpty() }?.let { add(it.joinToString(", ")) }
-							current.contentWarning?.takeIf { it.isNotBlank() }?.let(::add)
-							current.packageName.takeIf { it.isNotBlank() }?.let(::add)
-						}.joinToString(" • ")
-					binding.textViewDescription.text = details
-				}
-
-				is PluginManageItem.Placeholder -> {
-					Unit
-				}
-			}
+			itemView.isSelected = isSelected(item)
+			binding.textViewTitle.text = item.displayName
+			val parts = ArrayList<String>(3)
+			item.repository?.takeIf { it.isNotBlank() }?.let(parts::add)
+			item.installedTag?.takeIf { it.isNotBlank() }?.let(parts::add)
+			binding.textViewDescription.text = if (parts.isEmpty()) item.name else parts.joinToString(" • ")
+			binding.imageViewAdd.isVisible = item.hasUpdate
+			binding.imageViewAdd.setOnClickListener(
+				if (item.hasUpdate) View.OnClickListener { onUpdateClick(item) } else null,
+			)
 		}
 	}
 

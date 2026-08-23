@@ -216,32 +216,8 @@ class PluginsManageFragment :
 				showImportResult(viewModel.importFromGithub(release, fileName))
 			}
 		}
-		binding.buttonTachiyomi.setOnClickListener {
-			dialog.dismiss()
-			importTachiyomiRepository()
-		}
 
 		dialog.show()
-	}
-
-	private fun importTachiyomiRepository() {
-		viewLifecycleOwner.lifecycleScope.launch {
-			val input = askText(R.string.import_from_github, "", null)?.trim().orEmpty()
-			if (input.isBlank()) return@launch
-			val files = viewModel.findTachiyomiJsonFiles(input)
-			if (files.isEmpty()) {
-				showImportResult(false)
-				return@launch
-			}
-			val file =
-				if (files.size == 1) {
-					files.first()
-				} else {
-					val index = askSelect(files.map { it.path }) ?: return@launch
-					files.getOrNull(index) ?: return@launch
-				}
-			showImportResult(viewModel.importTachiyomiIndex(file))
-		}
 	}
 
 	private fun onRenameClick(item: PluginManageItem.Plugin) {

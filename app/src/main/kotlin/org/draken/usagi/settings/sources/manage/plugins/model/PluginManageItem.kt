@@ -19,23 +19,6 @@ sealed interface PluginManageItem : ListModel {
 		override fun areItemsTheSame(other: ListModel): Boolean = other is Plugin && name == other.name
 	}
 
-	data class Remote(
-		val id: String,
-		val name: String,
-		val packageName: String,
-		val versionName: String?,
-		val versionCode: String?,
-		val languages: List<String>,
-		val contentWarning: String?,
-		val repository: String,
-		val indexUrl: String,
-	) : PluginManageItem {
-		val displayName: String
-			get() = name
-
-		override fun areItemsTheSame(other: ListModel): Boolean = other is Remote && id == other.id && indexUrl == other.indexUrl
-	}
-
 	data class Placeholder(
 		@field:StringRes val titleResId: Int,
 		@field:StringRes val summaryResId: Int?,
