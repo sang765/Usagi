@@ -19,6 +19,18 @@ sealed interface PluginManageItem : ListModel {
 		override fun areItemsTheSame(other: ListModel): Boolean = other is Plugin && name == other.name
 	}
 
+	data class ExternalRepository(
+		val url: String,
+		val repository: String,
+		val title: String,
+		val path: String,
+	) : PluginManageItem {
+		val displayName: String
+			get() = title.ifBlank { path.substringBeforeLast('/').ifBlank { path } }
+
+		override fun areItemsTheSame(other: ListModel): Boolean = other is ExternalRepository && url == other.url
+	}
+
 	data class Placeholder(
 		@field:StringRes val titleResId: Int,
 		@field:StringRes val summaryResId: Int?,

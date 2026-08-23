@@ -20,6 +20,7 @@ class PluginsManageViewModel
 	constructor(
 		private val updatePluginsProvider: UpdatePluginsProvider,
 		private val pluginSideloadUseCase: PluginSideloadUseCase,
+		private val tachiyomiCatalogRepository: TachiyomiCatalogRepository,
 		private val settings: AppSettings,
 	) : BaseViewModel() {
 		val content = MutableStateFlow<List<PluginManageItem>>(emptyList())
@@ -27,6 +28,9 @@ class PluginsManageViewModel
 
 		@Volatile
 		private var pluginsSnapshot = emptyList<PluginManageItem.Plugin>()
+
+		@Volatile
+		private var externalRepositoriesSnapshot = emptyList<PluginManageItem.ExternalRepository>()
 
 		@Volatile
 		private var query = ""
@@ -39,6 +43,7 @@ class PluginsManageViewModel
 			launchLoadingJob(Dispatchers.Default) {
 				val localPlugins = loadPluginsLocal()
 				pluginsSnapshot = localPlugins
+				externalRepositoriesSnapshot = loadExternalRepositories()
 				publishFiltered()
 
 				if (localPlugins.isNotEmpty()) {
@@ -98,6 +103,12 @@ class PluginsManageViewModel
 			fileName: String = release.fileName,
 		): Boolean = pluginSideloadUseCase.importFromGithub(release, fileName).also { if (it) refresh() }
 
+		suspend fun discoverTachiyomiIndexes(input: String): List<TachiyomiIndexFile> = withContext(Dispatchers.Default) { tachiyomiCatalogRepository.discoverIndexFiles(input) }
+
+		suspend fun importTachiyomiIndex(index: TachiyomiIndexFile): Boolean = tachiyomiCatalogRepository.importIndex(index).also { if (it) refresh() }
+
+		fun tachiyomiRepositories(): List<TachiyomiExternalRepository> = tachiyomiCatalogRepository.savedRepositories()
+
 		suspend fun updatePlugin(item: PluginManageItem.Plugin): Boolean {
 			val repository = item.repository ?: return false
 			val release = resolveRelease(repository, item.name) ?: return false
@@ -136,7 +147,7 @@ class PluginsManageViewModel
 		fun isInstalled(fileName: String): Boolean = pluginSideloadUseCase.isInstalled(fileName)
 
 		private fun publishFiltered() {
-			val all = pluginsSnapshot
+			val all: List<PluginManageItem> = pluginsSnapshot + externalRepositoriesSnapshot
 			if (all.isEmpty()) {
 				content.value =
 					listOf(
@@ -153,15 +164,31 @@ class PluginsManageViewModel
 				return
 			}
 			val filtered =
-				all.filter { plugin ->
-					plugin.name.contains(q, true) ||
-						plugin.repository?.contains(q, true) == true
+				all.filter { item ->
+					when (item) {
+						is PluginManageItem.Plugin -> {
+							item.name.contains(q, true) || item.repository?.contains(q, true) == true
+						}
+
+						is PluginManageItem.ExternalRepository -> {
+							item.title.contains(q, true) || item.path.contains(q, true) || item.url.contains(q, true)
+						}
+
+						is PluginManageItem.Placeholder -> {
+							false
+						}
+					}
 				}
 			content.value =
 				filtered.ifEmpty {
 					listOf(PluginManageItem.Placeholder(titleResId = R.string.nothing_found, summaryResId = null))
 				}
 		}
+
+		private fun loadExternalRepositories(): List<PluginManageItem.ExternalRepository> =
+			tachiyomiCatalogRepository
+				.savedRepositories()
+				.map { PluginManageItem.ExternalRepository(url = it.url, repository = it.repository, title = it.title, path = it.path) }
 
 		private fun loadPluginsLocal(): List<PluginManageItem.Plugin> {
 			val plugins = pluginSideloadUseCase.listInstalled()

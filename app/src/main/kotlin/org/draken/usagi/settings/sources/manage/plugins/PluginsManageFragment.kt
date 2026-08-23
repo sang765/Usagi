@@ -1,6 +1,7 @@
 package org.draken.usagi.settings.sources.manage.plugins
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.os.Bundle
 import android.text.InputType
 import android.view.LayoutInflater
@@ -37,6 +38,7 @@ import org.draken.usagi.databinding.DialogImportBinding
 import org.draken.usagi.databinding.FragmentSettingsSourcesBinding
 import org.draken.usagi.main.ui.owners.AppBarOwner
 import org.draken.usagi.settings.SettingsActivity
+import org.draken.usagi.settings.sources.catalog.SourcesCatalogActivity
 import org.draken.usagi.settings.sources.manage.plugins.model.PluginManageItem
 import kotlin.coroutines.resume
 
@@ -89,6 +91,7 @@ class PluginsManageFragment :
 				onUpdateClick = ::onUpdateClick,
 				onLongClick = ::onLongClick,
 				onClick = ::onClick,
+				onExternalClick = ::onExternalRepositoryClick,
 				isSelected = { item -> viewModel.isSelected(item.name) },
 			)
 		with(binding.recyclerView) {
@@ -217,7 +220,36 @@ class PluginsManageFragment :
 			}
 		}
 
+		binding.buttonTachiyomi.setOnClickListener {
+			dialog.dismiss()
+			viewLifecycleOwner.lifecycleScope.launch {
+				val input = askText(R.string.import_tachiyomi, "", null)?.trim().orEmpty()
+				if (input.isBlank()) return@launch
+				val indexes = viewModel.discoverTachiyomiIndexes(input)
+				if (indexes.isEmpty()) {
+					showImportResult(false)
+					return@launch
+				}
+				val index =
+					if (indexes.size == 1) {
+						indexes.first()
+					} else {
+						val selected = askSelect(indexes.map { it.path }) ?: return@launch
+						indexes.getOrNull(selected) ?: return@launch
+					}
+				showImportResult(viewModel.importTachiyomiIndex(index))
+			}
+		}
+
 		dialog.show()
+	}
+
+	private fun onExternalRepositoryClick(item: PluginManageItem.ExternalRepository) {
+		startActivity(
+			Intent(requireContext(), SourcesCatalogActivity::class.java)
+				.putExtra(SourcesCatalogActivity.EXTRA_EXTERNAL_REPOSITORY_URL, item.url)
+				.putExtra(SourcesCatalogActivity.EXTRA_EXTERNAL_REPOSITORY_TITLE, item.displayName),
+		)
 	}
 
 	private fun onRenameClick(item: PluginManageItem.Plugin) {

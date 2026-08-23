@@ -18,12 +18,17 @@ class PluginManageAdapter(
 	onUpdateClick: (PluginManageItem.Plugin) -> Unit,
 	onLongClick: (PluginManageItem.Plugin) -> Unit,
 	onClick: (PluginManageItem.Plugin) -> Unit,
+	onExternalClick: (PluginManageItem.ExternalRepository) -> Unit,
 	isSelected: (PluginManageItem.Plugin) -> Boolean,
 ) : BaseListAdapter<ListModel>() {
 	init {
 		addDelegate(
 			ListItemType.CHAPTER_LIST,
 			pluginItemDelegate(onRenameClick, onUpdateClick, onLongClick, onClick, isSelected),
+		)
+		addDelegate(
+			ListItemType.INFO,
+			externalRepositoryDelegate(onExternalClick),
 		)
 		addDelegate(ListItemType.HINT_EMPTY, pluginPlaceholderDelegate())
 	}
@@ -70,6 +75,29 @@ class PluginManageAdapter(
 			binding.imageViewAdd.setOnClickListener(
 				if (item.hasUpdate) View.OnClickListener { onUpdateClick(item) } else null,
 			)
+		}
+	}
+
+	private fun externalRepositoryDelegate(
+		onClick: (PluginManageItem.ExternalRepository) -> Unit,
+	) = adapterDelegateViewBinding<PluginManageItem.ExternalRepository, ListModel, ItemSourceConfigBinding>(
+		{ layoutInflater, parent -> ItemSourceConfigBinding.inflate(layoutInflater, parent, false) },
+	) {
+		binding.imageViewIcon.setImageResource(R.drawable.ic_services)
+		binding.imageViewIcon.background = null
+		binding.imageViewMenu.isVisible = false
+		binding.imageViewMenu.setOnClickListener(null)
+		binding.imageViewRemove.isVisible = false
+		binding.imageViewRemove.setOnClickListener(null)
+		binding.imageViewAdd.isVisible = false
+		binding.imageViewAdd.setOnClickListener(null)
+		itemView.setOnLongClickListener(null)
+		itemView.setOnClickListener { onClick(item) }
+		bind {
+			binding.textViewTitle.text = item.displayName
+			binding.textViewDescription.text =
+				listOf(item.repository, context.getString(R.string.external_source), item.path)
+					.joinToString(" • ")
 		}
 	}
 
