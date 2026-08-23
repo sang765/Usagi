@@ -19,6 +19,7 @@ class PluginsManageViewModel
 	@Inject
 	constructor(
 		private val updatePluginsProvider: UpdatePluginsProvider,
+		private val tachiyomiExtensionRepository: TachiyomiExtensionRepository,
 		private val pluginSideloadUseCase: PluginSideloadUseCase,
 		private val settings: AppSettings,
 	) : BaseViewModel() {
@@ -27,6 +28,9 @@ class PluginsManageViewModel
 
 		@Volatile
 		private var pluginsSnapshot = emptyList<PluginManageItem.Plugin>()
+
+		@Volatile
+		private var remotePluginsSnapshot = emptyList<PluginManageItem.Remote>()
 
 		@Volatile
 		private var query = ""
@@ -80,6 +84,16 @@ class PluginsManageViewModel
 				val repository = updatePluginsProvider.resolve(input) ?: return@withContext null
 				updatePluginsProvider.requestRelease(repository, name)
 			}
+
+		suspend fun findTachiyomiJsonFiles(input: String): List<TachiyomiIndexFile> = tachiyomiExtensionRepository.findJsonFiles(input)
+
+		suspend fun importTachiyomiIndex(file: TachiyomiIndexFile): Boolean {
+			val metadata = tachiyomiExtensionRepository.loadIndex(file)
+			if (metadata.isEmpty()) return false
+			remotePluginsSnapshot = metadata.map { it.toManageItem() }
+			publishFiltered()
+			return true
+		}
 
 		suspend fun resolveGithubReleases(input: String): List<ExternalPluginDto> =
 			withContext(Dispatchers.Default) {
@@ -136,7 +150,7 @@ class PluginsManageViewModel
 		fun isInstalled(fileName: String): Boolean = pluginSideloadUseCase.isInstalled(fileName)
 
 		private fun publishFiltered() {
-			val all = pluginsSnapshot
+			val all: List<PluginManageItem> = pluginsSnapshot + remotePluginsSnapshot
 			if (all.isEmpty()) {
 				content.value =
 					listOf(
@@ -153,10 +167,24 @@ class PluginsManageViewModel
 				return
 			}
 			val filtered =
-				all.filter { plugin ->
-					plugin.name.contains(q, true) ||
-						plugin.repository?.contains(q, true) == true
+				all.filter { item ->
+					when (item) {
+						is PluginManageItem.Plugin -> {
+							item.name.contains(q, true) || item.repository?.contains(q, true) == true
+						}
+
+						is PluginManageItem.Remote -> {
+							item.name.contains(q, true) ||
+								item.packageName.contains(q, true) ||
+								item.repository.contains(q, true)
+						}
+
+						is PluginManageItem.Placeholder -> {
+							false
+						}
+					}
 				}
+
 			content.value =
 				filtered.ifEmpty {
 					listOf(PluginManageItem.Placeholder(titleResId = R.string.nothing_found, summaryResId = null))
@@ -179,3 +207,16 @@ class PluginsManageViewModel
 			}
 		}
 	}
+
+private fun TachiyomiExtensionMetadata.toManageItem() =
+	PluginManageItem.Remote(
+		id = id,
+		name = name,
+		packageName = packageName,
+		versionName = versionName,
+		versionCode = versionCode,
+		languages = languages,
+		contentWarning = contentWarning,
+		repository = repository,
+		indexUrl = indexUrl,
+	)
