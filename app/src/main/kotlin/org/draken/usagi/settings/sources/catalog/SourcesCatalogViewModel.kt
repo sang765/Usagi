@@ -9,8 +9,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.plus
+import org.draken.tsukimix.core.parser.tachiyomi.DirectTachiyomiInstalled
 import org.draken.tsukimix.core.parser.tachiyomi.TachiyomiCatalogSource
 import org.draken.tsukimix.core.parser.tachiyomi.TachiyomiExtensionArtifact
 import org.draken.usagi.R
@@ -50,7 +50,6 @@ class SourcesCatalogViewModel
 		private val externalRepositoryUrl = MutableStateFlow<String?>(null)
 		private val externalArtifacts = MutableStateFlow<List<TachiyomiExtensionArtifact>>(emptyList())
 		private val externalLoading = MutableStateFlow(false)
-		private val externalInstallStateRevision = MutableStateFlow(0L)
 		private val searchQuery = MutableStateFlow<String?>(null)
 		private val appliedFilter =
 			MutableStateFlow(
@@ -116,17 +115,21 @@ class SourcesCatalogViewModel
 		val content: StateFlow<List<ListModel>> =
 			combine(
 				combine(searchQuery, appliedFilter, externalRepositoryUrl, externalArtifacts, externalLoading) { query, filter, url, artifacts, loading ->
-
-					if (url != null) {
-						if (loading) listOf(LoadingState) else buildExternalSourcesList(filter, query, artifacts)
-					} else {
-						buildSourcesList(filter, query)
-					}
+					CatalogContentState(query, filter, url, artifacts, loading)
 				},
+				tachiyomiRuntime.directInstalled,
 				db.invalidationTracker.createFlow(TABLE_SOURCES),
-				externalInstallStateRevision,
-			) { items, _, _ -> items }
-				.stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Eagerly, listOf(LoadingState))
+			) { state, installed, _ ->
+				if (state.url != null) {
+					if (state.loading) {
+						listOf(LoadingState)
+					} else {
+						buildExternalSourcesList(state.filter, state.query, state.artifacts, installed)
+					}
+				} else {
+					buildSourcesList(state.filter, state.query)
+				}
+			}.stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Eagerly, listOf(LoadingState))
 
 		init {
 			repository.clearNewSourcesBadge()
@@ -184,7 +187,6 @@ class SourcesCatalogViewModel
 				}
 			if (success) {
 				repository.syncRegistrySources()
-				externalInstallStateRevision.update { it + 1 }
 			}
 			return success
 		}
@@ -233,8 +235,9 @@ class SourcesCatalogViewModel
 			filter: SourcesCatalogFilter,
 			query: String?,
 			artifacts: List<TachiyomiExtensionArtifact>,
+			installedExtensions: List<DirectTachiyomiInstalled>,
 		): List<SourceCatalogItem> {
-			val installed = tachiyomiRuntime.directInstalled.value.associateBy { it.packageName }
+			val installed = installedExtensions.associateBy { it.packageName }
 			val sources =
 				artifacts
 					.asSequence()
@@ -271,6 +274,14 @@ class SourcesCatalogViewModel
 			val result = repository.allMangaSources.mapSortedByCount { it.contentType }
 			return if (isNsfwDisabled) result.filterNot { it == ContentType.HENTAI } else result
 		}
+
+		private data class CatalogContentState(
+			val query: String?,
+			val filter: SourcesCatalogFilter,
+			val url: String?,
+			val artifacts: List<TachiyomiExtensionArtifact>,
+			val loading: Boolean,
+		)
 
 		private fun getExternalContentTypes(artifacts: List<TachiyomiExtensionArtifact>): List<ContentType> =
 			artifacts
