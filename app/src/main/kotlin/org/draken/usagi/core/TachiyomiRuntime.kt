@@ -1,5 +1,6 @@
 package org.draken.usagi.core
 
+import dagger.Lazy
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.StateFlow
@@ -21,8 +22,16 @@ class TachiyomiRuntime
 	@Inject
 	constructor(
 		private val manager: TachiyomiExtensionManager,
-		private val directManager: DirectTachiyomiExtensionManager,
+		private val directManagerProvider: Lazy<DirectTachiyomiExtensionManager>,
 	) {
+		private var directManagerReady = false
+
+		private val directManager: DirectTachiyomiExtensionManager
+			get() {
+				directManagerReady = true
+				return directManagerProvider.get()
+			}
+
 		val installedExtensions: StateFlow<List<TachiyomiLoadResult.Success>>
 			get() = manager.installedExtensions
 
@@ -50,17 +59,13 @@ class TachiyomiRuntime
 			publishActiveSources()
 		}
 
-		/** Keeps the shared source registry synchronized for the application lifetime. */
+		/** Keeps the legacy installed-extension runtime synchronized for the application lifetime. */
 		suspend fun start(): Nothing =
 			coroutineScope {
 				launch {
 					manager.sources.collectLatest { publishActiveSources() }
 				}
-				launch {
-					directManager.sources.collectLatest { publishActiveSources() }
-				}
 				manager.ensureReady()
-				directManager.ensureReady()
 				awaitCancellation()
 			}
 
@@ -74,7 +79,8 @@ class TachiyomiRuntime
 
 		private fun publishActiveSources() {
 			val nativeSources = MangaSourceRegistry.sources.filterNot { it is TachiyomiMangaSource }
-			val tachiyomiSources = (manager.getActiveSources() + directManager.getActiveSources()).distinctBy { it.name }
+			val directSources = if (directManagerReady) directManager.getActiveSources() else emptyList()
+			val tachiyomiSources = (manager.getActiveSources() + directSources).distinctBy { it.name }
 			MangaSourceRegistry.publish(nativeSources + tachiyomiSources)
 		}
 	}
