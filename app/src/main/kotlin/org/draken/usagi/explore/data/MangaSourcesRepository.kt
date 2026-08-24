@@ -53,7 +53,7 @@ class MangaSourcesRepository
 		@LocalizedAppContext private val context: Context,
 		private val db: MangaDatabase,
 		private val settings: AppSettings,
-		private val tachiyomiRuntime: TachiyomiRuntime,
+		private val tachiyomiRuntime: TachiyomiRuntime? = null,
 		private val tachiyomiExtensionManager: dagger.Lazy<ExternalManager>? = null,
 	) {
 		private var assimilatedVersion = -1
@@ -510,7 +510,7 @@ class MangaSourcesRepository
 				isAllSourcesEnabled
 			}
 
-		private fun isCatalogSource(source: MangaSource): Boolean = shouldPersistInSourcesCatalog(source.isExternalSource(), tachiyomiRuntime.isDirectSource(source.name))
+		private fun isCatalogSource(source: MangaSource): Boolean = shouldPersistInSourcesCatalog(source.isExternalSource(), tachiyomiRuntime?.isDirectSource(source.name) == true)
 
 		private fun String.toMangaSourceOrNull(): MangaSource? = MangaSourceRegistry.resolveByName(this)
 	}
