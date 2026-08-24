@@ -49,4 +49,29 @@ class SourceCatalogItemStateTest {
 		assertFalse(notInstalledItem.isInstalled)
 		assertTrue(installedItem.isInstalled)
 	}
+
+	@Test
+	fun `loading state changes row contents without changing row identity`() {
+		val source = TachiyomiCatalogSource(1L, "Example", "en", "https://example.com")
+		val artifact =
+			TachiyomiExtensionArtifact(
+				repositoryUrl = "https://example.com/repository.json",
+				name = "Example extension",
+				packageName = "example.extension",
+				jarUrl = "https://example.com/example.jar",
+				apkUrl = null,
+				iconUrl = null,
+				extensionLib = 1.5,
+				versionCode = 1L,
+				versionName = "1.0",
+				sources = listOf(source),
+			)
+		val idleItem = SourceCatalogItem.Tachiyomi(source, artifact, null)
+		val loadingItem = idleItem.copy(isLoading = true)
+
+		assertTrue(idleItem.areItemsTheSame(loadingItem))
+		assertNotEquals(idleItem, loadingItem)
+		assertFalse(idleItem.isLoading)
+		assertTrue(loadingItem.isLoading)
+	}
 }

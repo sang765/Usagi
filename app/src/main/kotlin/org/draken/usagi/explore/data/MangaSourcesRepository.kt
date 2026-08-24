@@ -115,7 +115,7 @@ class MangaSourcesRepository
 			if (settings.isAllSourcesEnabled) {
 				return emptySet()
 			}
-			val result = allMangaSources.filterNot { it.isExternalSource() }.toMutableSet()
+			val result = allMangaSources.filter(::isCatalogSource).toMutableSet()
 			if (settings.isNsfwContentDisabled) {
 				result.removeAll { it.isNsfw() }
 			}

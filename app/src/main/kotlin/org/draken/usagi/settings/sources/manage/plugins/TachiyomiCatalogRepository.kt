@@ -32,49 +32,56 @@ class TachiyomiCatalogRepository
 
 		suspend fun discoverIndexFiles(input: String): List<TachiyomiIndexFile> =
 			withContext(Dispatchers.IO) {
-				val repository = parseRepository(input) ?: return@withContext emptyList()
-				val repositoryJson = getJson("https://api.github.com/repos/${repository.owner}/${repository.name}")
-				val branch = repositoryJson.optString("default_branch").ifBlank { "main" }
-				val tree =
-					getJson(
-						"https://api.github.com/repos/${repository.owner}/${repository.name}/git/trees/${Uri.encode(branch)}?recursive=1",
-					)
-				val entries = tree.optJSONArray("tree") ?: JSONArray()
-				buildList {
-					for (index in 0 until entries.length()) {
-						val entry = entries.optJSONObject(index) ?: continue
-						val path = entry.optString("path")
-						if (entry.optString("type") != "blob" || !path.endsWith(".json", ignoreCase = true)) continue
-						val encodedPath = path.split('/').joinToString("/") { Uri.encode(it) }
-						add(
-							TachiyomiIndexFile(
-								repository = "${repository.owner}/${repository.name}",
-								title = repository.owner,
-								path = path,
-								url = "https://raw.githubusercontent.com/${repository.owner}/${repository.name}/${Uri.encode(branch)}/$encodedPath",
-							),
+				runCatching {
+					directIndexFile(input)?.let { return@runCatching listOf(it) }
+					val repository = parseRepository(input) ?: return@runCatching emptyList()
+					val repositoryJson = getJson("https://api.github.com/repos/${repository.owner}/${repository.name}")
+					val branch = repositoryJson.optString("default_branch").ifBlank { "main" }
+					val tree =
+						getJson(
+							"https://api.github.com/repos/${repository.owner}/${repository.name}/git/trees/${Uri.encode(branch)}?recursive=1",
 						)
-					}
-				}.sortedBy { it.path.lowercase(Locale.ROOT) }
+					val entries = tree.optJSONArray("tree") ?: JSONArray()
+					buildList {
+						for (index in 0 until entries.length()) {
+							val entry = entries.optJSONObject(index) ?: continue
+							val path = entry.optString("path")
+							if (entry.optString("type") != "blob" || !path.endsWith(".json", ignoreCase = true)) continue
+							val encodedPath = path.split('/').joinToString("/") { Uri.encode(it) }
+							add(
+								TachiyomiIndexFile(
+									repository = "${repository.owner}/${repository.name}",
+									title = repository.owner,
+									path = path,
+									url = "https://raw.githubusercontent.com/${repository.owner}/${repository.name}/${Uri.encode(branch)}/$encodedPath",
+								),
+							)
+						}
+					}.sortedBy { it.path.lowercase(Locale.ROOT) }
+				}.getOrDefault(emptyList())
 			}
 
 		suspend fun importIndex(index: TachiyomiIndexFile): Boolean =
 			withContext(Dispatchers.IO) {
-				val url = catalogProvider.normalizeUrl(index.url) ?: return@withContext false
-				val artifacts = catalogProvider.load(url)
-				if (artifacts.isEmpty() && !catalogProvider.lastLoadError.isNullOrBlank()) {
-					return@withContext false
-				}
-				catalogProvider.saveRepository(url)
-				catalogProvider.setRepositoryName(url, index.title)
-				val repositories = savedRepositoryUrls().toMutableSet()
-				repositories.add(url)
-				preferences.edit {
-					putStringSet(KEY_REPOSITORIES, repositories)
-					putString("$KEY_PATH:$url", index.path)
-					putString("$KEY_TITLE:$url", index.title)
-				}
-				true
+				runCatching {
+					val url =
+						index.url.trim().takeIf { it.startsWith("http://") || it.startsWith("https://") }
+							?: return@runCatching false
+					val artifacts = catalogProvider.load(url)
+					if (artifacts.isEmpty() && !catalogProvider.lastLoadError.isNullOrBlank()) {
+						return@runCatching false
+					}
+					catalogProvider.saveRepository(url)
+					catalogProvider.setRepositoryName(url, index.title)
+					val repositories = savedRepositoryUrls().toMutableSet()
+					repositories.add(url)
+					preferences.edit {
+						putStringSet(KEY_REPOSITORIES, repositories)
+						putString("$KEY_PATH:$url", index.path)
+						putString("$KEY_TITLE:$url", index.title)
+					}
+					true
+				}.getOrDefault(false)
 			}
 
 		fun savedRepositories(): List<TachiyomiExternalRepository> =
@@ -113,6 +120,27 @@ class TachiyomiCatalogRepository
 		}
 
 		private fun savedRepositoryUrls(): Set<String> = preferences.getStringSet(KEY_REPOSITORIES, emptySet()).orEmpty().mapNotNullTo(HashSet()) { it }
+
+		private fun directIndexFile(input: String): TachiyomiIndexFile? {
+			val value = input.trim()
+			if (!value.startsWith("http://") && !value.startsWith("https://")) return null
+			val uri = Uri.parse(value)
+			val segments = uri.pathSegments
+			val path = segments.lastOrNull()?.takeIf { it.endsWith(".json", ignoreCase = true) } ?: return null
+			val normalizedUrl =
+				if (uri.host.equals("github.com", ignoreCase = true) && segments.size >= 4 && segments[2].equals("blob", ignoreCase = true)) {
+					"https://raw.githubusercontent.com/${segments[0]}/${segments[1]}/${segments.drop(3).joinToString("/")}"
+				} else {
+					value
+				}
+			val repository =
+				segments
+					.take(2)
+					.filter { it.isNotBlank() }
+					.joinToString("/")
+					.ifBlank { uri.host.orEmpty() }
+			return TachiyomiIndexFile(repository = repository, title = segments.firstOrNull().orEmpty().ifBlank { path.removeSuffix(".json") }, path = path, url = normalizedUrl)
+		}
 
 		private fun parseRepository(input: String): GithubRepository? {
 			val value = input.trim().removeSuffix("/").removeSuffix(".git")

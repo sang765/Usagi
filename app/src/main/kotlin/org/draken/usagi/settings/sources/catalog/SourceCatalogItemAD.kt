@@ -1,6 +1,8 @@
 package org.draken.usagi.settings.sources.catalog
 
+import android.animation.ObjectAnimator
 import android.view.View
+import android.view.animation.LinearInterpolator
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updatePaddingRelative
@@ -41,11 +43,28 @@ fun sourceCatalogItemTachiyomiAD(
 ) = adapterDelegateViewBinding<SourceCatalogItem.Tachiyomi, ListModel, ItemSourceCatalogBinding>(
 	{ layoutInflater, parent -> ItemSourceCatalogBinding.inflate(layoutInflater, parent, false) },
 ) {
-	binding.root.setOnClickListener { v -> onClick(item, v) }
-	binding.imageViewAdd.setOnClickListener { v -> onInstall(item, v) }
+	var loadingAnimator: ObjectAnimator? = null
+	binding.root.setOnClickListener { v -> if (!item.isLoading) onClick(item, v) }
+	binding.imageViewAdd.setOnClickListener { v -> if (!item.isLoading) onInstall(item, v) }
 	val basePadding = context.getThemeDimensionPixelOffset(appcompatR.attr.listPreferredItemPaddingEnd, binding.root.paddingStart)
 	binding.root.updatePaddingRelative(end = (basePadding - context.resources.getDimensionPixelOffset(R.dimen.margin_small)).coerceAtLeast(0))
 	bind {
+		loadingAnimator?.cancel()
+		loadingAnimator = null
+		binding.imageViewAdd.rotation = 0f
+		binding.root.isEnabled = !item.isLoading
+		binding.imageViewAdd.isEnabled = !item.isLoading
+		if (item.isLoading) {
+			binding.imageViewAdd.setImageResource(R.drawable.ic_sync)
+			binding.imageViewAdd.contentDescription = context.getString(R.string.loading_)
+			loadingAnimator =
+				ObjectAnimator.ofFloat(binding.imageViewAdd, View.ROTATION, 0f, 360f).apply {
+					duration = 800L
+					interpolator = LinearInterpolator()
+					repeatCount = ObjectAnimator.INFINITE
+					start()
+				}
+		}
 		val fallback = FaviconDrawable(context, R.style.FaviconDrawable, item.artifact.packageName)
 		binding.imageViewIcon.errorDrawable = fallback
 		binding.imageViewIcon.fallbackDrawable = fallback
@@ -59,21 +78,23 @@ fun sourceCatalogItemTachiyomiAD(
 		binding.textViewDescription.text = item.description(context)
 		binding.textViewDescription.drawableStart = null
 		binding.imageViewAdd.isVisible = true
-		binding.imageViewAdd.setImageResource(
-			when {
-				item.hasUpdate -> R.drawable.ic_updated
-				item.isInstalled -> R.drawable.ic_delete
-				else -> R.drawable.ic_download
-			},
-		)
-		binding.imageViewAdd.contentDescription =
-			context.getString(
+		if (!item.isLoading) {
+			binding.imageViewAdd.setImageResource(
 				when {
-					item.hasUpdate -> R.string.update
-					item.isInstalled -> R.string.remove
-					else -> R.string.add
+					item.hasUpdate -> R.drawable.ic_updated
+					item.isInstalled -> R.drawable.ic_delete
+					else -> R.drawable.ic_download
 				},
 			)
+			binding.imageViewAdd.contentDescription =
+				context.getString(
+					when {
+						item.hasUpdate -> R.string.update
+						item.isInstalled -> R.string.remove
+						else -> R.string.add
+					},
+				)
+		}
 	}
 }
 

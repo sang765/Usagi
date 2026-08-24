@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.plus
 import org.draken.tsukimix.core.parser.tachiyomi.DirectTachiyomiInstalled
 import org.draken.tsukimix.core.parser.tachiyomi.TachiyomiCatalogSource
@@ -50,6 +51,7 @@ class SourcesCatalogViewModel
 		private val externalRepositoryUrl = MutableStateFlow<String?>(null)
 		private val externalArtifacts = MutableStateFlow<List<TachiyomiExtensionArtifact>>(emptyList())
 		private val externalLoading = MutableStateFlow(false)
+		private val tachiyomiLoadingPackages = MutableStateFlow<Set<String>>(emptySet())
 		private val searchQuery = MutableStateFlow<String?>(null)
 		private val appliedFilter =
 			MutableStateFlow(
@@ -119,12 +121,13 @@ class SourcesCatalogViewModel
 				},
 				tachiyomiRuntime.directInstalled,
 				db.invalidationTracker.createFlow(TABLE_SOURCES),
-			) { state, installed, _ ->
+				tachiyomiLoadingPackages,
+			) { state, installed, _, loadingPackages ->
 				if (state.url != null) {
 					if (state.loading) {
 						listOf(LoadingState)
 					} else {
-						buildExternalSourcesList(state.filter, state.query, state.artifacts, installed)
+						buildExternalSourcesList(state.filter, state.query, state.artifacts, installed, loadingPackages)
 					}
 				} else {
 					buildSourcesList(state.filter, state.query)
@@ -178,36 +181,38 @@ class SourcesCatalogViewModel
 			}
 		}
 
-		suspend fun toggleTachiyomi(item: SourceCatalogItem.Tachiyomi): Boolean {
-			val success =
-				if (shouldRemoveTachiyomiOnToggle(item.isInstalled, item.hasUpdate)) {
-					tachiyomiRuntime.remove(item.artifact.packageName)
-				} else {
-					tachiyomiRuntime.install(item.artifact)
+		suspend fun toggleTachiyomi(item: SourceCatalogItem.Tachiyomi): Boolean =
+			withTachiyomiLoading(item.artifact.packageName) {
+				val success =
+					if (shouldRemoveTachiyomiOnToggle(item.isInstalled, item.hasUpdate)) {
+						tachiyomiRuntime.remove(item.artifact.packageName)
+					} else {
+						tachiyomiRuntime.install(item.artifact)
+					}
+				if (success) {
+					repository.syncRegistrySources()
 				}
-			if (success) {
-				repository.syncRegistrySources()
+				success
 			}
-			return success
-		}
 
-		suspend fun prepareTachiyomiSource(item: SourceCatalogItem.Tachiyomi): TachiyomiSourceOpenResult? {
-			val previewPackageName =
-				previewPackageName(
-					item.artifact.packageName,
-					tachiyomiRuntime.directInstalled.value.map { it.packageName },
-				)
-			if (previewPackageName != null) {
-				if (!tachiyomiRuntime.install(item.artifact)) return null
-				repository.syncRegistrySources()
+		suspend fun prepareTachiyomiSource(item: SourceCatalogItem.Tachiyomi): TachiyomiSourceOpenResult? =
+			withTachiyomiLoading(item.artifact.packageName) {
+				val previewPackageName =
+					previewPackageName(
+						item.artifact.packageName,
+						tachiyomiRuntime.directInstalled.value.map { it.packageName },
+					)
+				if (previewPackageName != null) {
+					if (!tachiyomiRuntime.install(item.artifact)) return@withTachiyomiLoading null
+					repository.syncRegistrySources()
+				}
+				val source = tachiyomiRuntime.getSourceById(item.source.id)
+				if (source == null && previewPackageName != null) {
+					tachiyomiRuntime.remove(previewPackageName)
+					repository.syncRegistrySources()
+				}
+				source?.let { TachiyomiSourceOpenResult(it, previewPackageName) }
 			}
-			val source = tachiyomiRuntime.getSourceById(item.source.id)
-			if (source == null && previewPackageName != null) {
-				tachiyomiRuntime.remove(previewPackageName)
-				repository.syncRegistrySources()
-			}
-			return source?.let { TachiyomiSourceOpenResult(it, previewPackageName) }
-		}
 
 		suspend fun unloadTachiyomiPreview(packageName: String): Boolean {
 			val success = tachiyomiRuntime.remove(packageName)
@@ -258,6 +263,7 @@ class SourcesCatalogViewModel
 			query: String?,
 			artifacts: List<TachiyomiExtensionArtifact>,
 			installedExtensions: List<DirectTachiyomiInstalled>,
+			loadingPackages: Set<String>,
 		): List<SourceCatalogItem> {
 			val installed = installedExtensions.associateBy { it.packageName }
 			val sources =
@@ -268,7 +274,7 @@ class SourcesCatalogViewModel
 						artifact.sources.asSequence().mapNotNull { source ->
 							if (settings.isNsfwContentDisabled && source.contentType == ContentType.HENTAI) return@mapNotNull null
 							if (!matchesTachiyomiCatalogSource(source, artifact, query, filter.locale, filter.types)) return@mapNotNull null
-							SourceCatalogItem.Tachiyomi(source, artifact, installed[artifact.packageName])
+							SourceCatalogItem.Tachiyomi(source, artifact, installed[artifact.packageName], artifact.packageName in loadingPackages)
 						}
 					}.sortedBy { it.displayName.lowercase(Locale.ROOT) }
 					.toList()
@@ -301,6 +307,18 @@ class SourcesCatalogViewModel
 			val source: MangaSource,
 			val previewPackageName: String?,
 		)
+
+		private suspend fun <T> withTachiyomiLoading(
+			packageName: String,
+			block: suspend () -> T,
+		): T {
+			tachiyomiLoadingPackages.update { it + packageName }
+			return try {
+				block()
+			} finally {
+				tachiyomiLoadingPackages.update { it - packageName }
+			}
+		}
 
 		private data class CatalogContentState(
 			val query: String?,

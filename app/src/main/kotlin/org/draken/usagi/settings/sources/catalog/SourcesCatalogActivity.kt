@@ -173,13 +173,16 @@ class SourcesCatalogActivity :
 	private fun updateFilters(state: SourcesCatalogUiState) {
 		val appliedFilter = state.appliedFilter
 		val chips = ArrayList<ChipModel>(state.contentTypes.size + 3)
-		chips +=
-			ChipModel(
-				title = appliedFilter.plugin?.removeSuffix(".jar") ?: getString(R.string.any),
-				icon = R.drawable.ic_services,
-				isDropdown = true,
-				data = "plugins",
-			)
+		if (!viewModel.isExternalCatalog) {
+			chips +=
+				ChipModel(
+					title = appliedFilter.plugin?.removeSuffix(".jar") ?: getString(R.string.any),
+					icon = R.drawable.ic_services,
+					isDropdown = true,
+					data = "plugins",
+				)
+		}
+
 		chips +=
 			ChipModel(
 				title = appliedFilter.locale?.toLocale().getDisplayName(this),

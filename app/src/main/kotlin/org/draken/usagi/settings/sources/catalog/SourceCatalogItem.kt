@@ -24,6 +24,7 @@ sealed interface SourceCatalogItem : ListModel {
 		val source: TachiyomiCatalogSource,
 		val artifact: TachiyomiExtensionArtifact,
 		val installed: DirectTachiyomiInstalled?,
+		val isLoading: Boolean = false,
 	) : SourceCatalogItem {
 		val isInstalled: Boolean
 			get() = installed != null
@@ -47,7 +48,8 @@ sealed interface SourceCatalogItem : ListModel {
 					val locale = Locale.forLanguageTag(source.language.replace('_', '-'))
 					locale.getDisplayName(locale).takeIf { it.isNotBlank() } ?: source.language
 				}
-			return "$contentType, $language • ${artifact.name}"
+			val artifactSuffix = tachiyomiArtifactSuffix(source.name, artifact.name)
+			return if (artifactSuffix == null) "$contentType, $language" else "$contentType, $language • $artifactSuffix"
 		}
 
 		val isNsfw: Boolean
