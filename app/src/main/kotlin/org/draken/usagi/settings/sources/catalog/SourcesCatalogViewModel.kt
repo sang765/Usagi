@@ -130,6 +130,7 @@ class SourcesCatalogViewModel
 				runCatching {
 					tachiyomiRuntime.ensureDirectReady()
 					repository.syncRegistrySources()
+					contentTypes.value = getNativeContentTypes(settings.isNsfwContentDisabled)
 				}
 			}
 			launchJob(Dispatchers.Default) {
