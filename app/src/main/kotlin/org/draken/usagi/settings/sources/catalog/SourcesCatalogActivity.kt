@@ -58,7 +58,7 @@ class SourcesCatalogActivity :
 			SourcesCatalogAdapter(
 				listener = this,
 				onTachiyomiClick = ::openTachiyomiSource,
-				onTachiyomiInstall = ::installTachiyomi,
+				onTachiyomiInstall = ::toggleTachiyomi,
 			)
 		with(viewBinding.recyclerView) {
 			setHasFixedSize(true)
@@ -141,12 +141,13 @@ class SourcesCatalogActivity :
 		viewModel.getImportedTachiyomiSource(item)?.let { router.openList(it, null, null) }
 	}
 
-	private fun installTachiyomi(
+	private fun toggleTachiyomi(
 		item: SourceCatalogItem.Tachiyomi,
 		view: View,
 	) {
 		lifecycleScope.launch {
-			val success = viewModel.installTachiyomi(item)
+			val success = viewModel.toggleTachiyomi(item)
+
 			Snackbar.make(view, if (success) R.string.load_success else R.string.load_failed, Snackbar.LENGTH_LONG).show()
 		}
 	}

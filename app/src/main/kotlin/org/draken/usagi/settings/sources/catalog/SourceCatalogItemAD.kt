@@ -60,15 +60,20 @@ fun sourceCatalogItemTachiyomiAD(
 		binding.textViewDescription.drawableStart = null
 		binding.imageViewAdd.isVisible = true
 		binding.imageViewAdd.setImageResource(
-			if (item.hasUpdate) {
-				R.drawable.ic_updated
-			} else if (item.isInstalled) {
-				R.drawable.ic_check
-			} else {
-				R.drawable.ic_download
+			when {
+				item.hasUpdate -> R.drawable.ic_updated
+				item.isInstalled -> R.drawable.ic_delete
+				else -> R.drawable.ic_download
 			},
 		)
-		binding.imageViewAdd.contentDescription = context.getString(if (item.hasUpdate) R.string.update else R.string.add)
+		binding.imageViewAdd.contentDescription =
+			context.getString(
+				when {
+					item.hasUpdate -> R.string.update
+					item.isInstalled -> R.string.remove
+					else -> R.string.add
+				},
+			)
 	}
 }
 

@@ -171,13 +171,19 @@ class SourcesCatalogViewModel
 			}
 		}
 
-		suspend fun installTachiyomi(item: SourceCatalogItem.Tachiyomi): Boolean =
-			tachiyomiRuntime.install(item.artifact).also { success ->
-				if (success) {
-					repository.syncRegistrySources()
-					externalArtifacts.value = externalArtifacts.value.toList()
+		suspend fun toggleTachiyomi(item: SourceCatalogItem.Tachiyomi): Boolean {
+			val success =
+				if (shouldRemoveTachiyomiOnToggle(item.isInstalled, item.hasUpdate)) {
+					tachiyomiRuntime.remove(item.artifact.packageName)
+				} else {
+					tachiyomiRuntime.install(item.artifact)
 				}
+			if (success) {
+				repository.syncRegistrySources()
+				externalArtifacts.value = externalArtifacts.value.toList()
 			}
+			return success
+		}
 
 		fun getImportedTachiyomiSource(item: SourceCatalogItem.Tachiyomi): MangaSource? = tachiyomiRuntime.getSourceById(item.source.id)
 

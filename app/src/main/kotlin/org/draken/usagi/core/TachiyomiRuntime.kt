@@ -87,6 +87,12 @@ class TachiyomiRuntime
 			return success
 		}
 
+		suspend fun remove(packageName: String): Boolean {
+			val success = directManager.remove(packageName)
+			if (success) ensureDirectReady(forceRefresh = true)
+			return success
+		}
+
 		private fun publishActiveSources() {
 			val nativeSources = MangaSourceRegistry.sources.filterNot { it is TachiyomiMangaSource }
 			val directSources = if (directManagerReady) directManager.getActiveSources() else emptyList()
