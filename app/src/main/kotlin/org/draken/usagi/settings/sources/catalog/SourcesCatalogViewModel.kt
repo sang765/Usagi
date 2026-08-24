@@ -115,7 +115,7 @@ class SourcesCatalogViewModel
 
 		val content: StateFlow<List<ListModel>> =
 			combine(
-				combine(searchQuery, appliedFilter, externalRepositoryUrl, externalArtifacts, externalLoading, externalInstallStateRevision) { query, filter, url, artifacts, loading, _ ->
+				combine(searchQuery, appliedFilter, externalRepositoryUrl, externalArtifacts, externalLoading) { query, filter, url, artifacts, loading ->
 
 					if (url != null) {
 						if (loading) listOf(LoadingState) else buildExternalSourcesList(filter, query, artifacts)
@@ -124,7 +124,8 @@ class SourcesCatalogViewModel
 					}
 				},
 				db.invalidationTracker.createFlow(TABLE_SOURCES),
-			) { items, _ -> items }
+				externalInstallStateRevision,
+			) { items, _, _ -> items }
 				.stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Eagerly, listOf(LoadingState))
 
 		init {
