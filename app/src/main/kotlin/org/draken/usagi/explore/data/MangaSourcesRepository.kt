@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import org.draken.usagi.BuildConfig
 import org.draken.usagi.core.LocalizedAppContext
+import org.draken.usagi.core.TachiyomiRuntime
 import org.draken.usagi.core.db.MangaDatabase
 import org.draken.usagi.core.db.dao.MangaSourcesDao
 import org.draken.usagi.core.db.entity.MangaSourceEntity
@@ -52,6 +53,7 @@ class MangaSourcesRepository
 		@LocalizedAppContext private val context: Context,
 		private val db: MangaDatabase,
 		private val settings: AppSettings,
+		private val tachiyomiRuntime: TachiyomiRuntime,
 		private val tachiyomiExtensionManager: dagger.Lazy<ExternalManager>? = null,
 	) {
 		private var assimilatedVersion = -1
@@ -312,6 +314,10 @@ class MangaSourcesRepository
 			settings.sourcesVersion = BuildConfig.VERSION_CODE
 		}
 
+		suspend fun syncRegistrySources() {
+			assimilateNewSources()
+		}
+
 		private suspend fun assimilateNewSources(): Boolean {
 			if (MangaSourceRegistry.sources.isEmpty()) {
 				return false // No plugins loaded yet, preserve existing DB records
@@ -376,7 +382,7 @@ class MangaSourcesRepository
 
 		private suspend fun getNewSources(): MutableSet<out MangaSource> {
 			val entities = dao.findAll()
-			val result = allMangaSources.filterNot { it.isExternalSource() }.toMutableSet()
+			val result = allMangaSources.filter(::isCatalogSource).toMutableSet()
 			for (e in entities) {
 				result.remove(e.source.toMangaSourceOrNull() ?: continue)
 			}
@@ -461,7 +467,7 @@ class MangaSourcesRepository
 			val result = ArrayList<MangaSourceInfo>(size)
 			for (entity in this) {
 				val source = entity.source.toMangaSourceOrNull() ?: continue
-				if (source.isExternalSource()) {
+				if (!isCatalogSource(source)) {
 					continue
 				}
 				if (skipNsfwSources && source.isNsfw()) {
@@ -503,6 +509,8 @@ class MangaSourcesRepository
 			settings.observeAsFlow(AppSettings.KEY_SOURCES_ENABLED_ALL) {
 				isAllSourcesEnabled
 			}
+
+		private fun isCatalogSource(source: MangaSource): Boolean = shouldPersistInSourcesCatalog(source.isExternalSource(), tachiyomiRuntime.isDirectSource(source.name))
 
 		private fun String.toMangaSourceOrNull(): MangaSource? = MangaSourceRegistry.resolveByName(this)
 	}

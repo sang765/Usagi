@@ -126,6 +126,12 @@ class SourcesCatalogViewModel
 
 		init {
 			repository.clearNewSourcesBadge()
+			launchJob(Dispatchers.IO) {
+				runCatching {
+					tachiyomiRuntime.ensureDirectReady()
+					repository.syncRegistrySources()
+				}
+			}
 			launchJob(Dispatchers.Default) {
 				contentTypes.value = getNativeContentTypes(settings.isNsfwContentDisabled)
 			}
@@ -166,7 +172,10 @@ class SourcesCatalogViewModel
 
 		suspend fun installTachiyomi(item: SourceCatalogItem.Tachiyomi): Boolean =
 			tachiyomiRuntime.install(item.artifact).also { success ->
-				if (success) externalArtifacts.value = externalArtifacts.value.toList()
+				if (success) {
+					repository.syncRegistrySources()
+					externalArtifacts.value = externalArtifacts.value.toList()
+				}
 			}
 
 		fun getImportedTachiyomiSource(item: SourceCatalogItem.Tachiyomi): MangaSource? = tachiyomiRuntime.getSourceById(item.source.id)
