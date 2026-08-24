@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.plus
 import org.draken.tsukimix.core.parser.tachiyomi.TachiyomiCatalogSource
 import org.draken.tsukimix.core.parser.tachiyomi.TachiyomiExtensionArtifact
@@ -49,6 +50,7 @@ class SourcesCatalogViewModel
 		private val externalRepositoryUrl = MutableStateFlow<String?>(null)
 		private val externalArtifacts = MutableStateFlow<List<TachiyomiExtensionArtifact>>(emptyList())
 		private val externalLoading = MutableStateFlow(false)
+		private val externalInstallStateRevision = MutableStateFlow(0L)
 		private val searchQuery = MutableStateFlow<String?>(null)
 		private val appliedFilter =
 			MutableStateFlow(
@@ -113,7 +115,8 @@ class SourcesCatalogViewModel
 
 		val content: StateFlow<List<ListModel>> =
 			combine(
-				combine(searchQuery, appliedFilter, externalRepositoryUrl, externalArtifacts, externalLoading) { query, filter, url, artifacts, loading ->
+				combine(searchQuery, appliedFilter, externalRepositoryUrl, externalArtifacts, externalLoading, externalInstallStateRevision) { query, filter, url, artifacts, loading, _ ->
+
 					if (url != null) {
 						if (loading) listOf(LoadingState) else buildExternalSourcesList(filter, query, artifacts)
 					} else {
@@ -180,7 +183,7 @@ class SourcesCatalogViewModel
 				}
 			if (success) {
 				repository.syncRegistrySources()
-				externalArtifacts.value = externalArtifacts.value.toList()
+				externalInstallStateRevision.update { it + 1 }
 			}
 			return success
 		}
