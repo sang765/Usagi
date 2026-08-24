@@ -191,7 +191,29 @@ class SourcesCatalogViewModel
 			return success
 		}
 
-		fun getImportedTachiyomiSource(item: SourceCatalogItem.Tachiyomi): MangaSource? = tachiyomiRuntime.getSourceById(item.source.id)
+		suspend fun prepareTachiyomiSource(item: SourceCatalogItem.Tachiyomi): TachiyomiSourceOpenResult? {
+			val previewPackageName =
+				previewPackageName(
+					item.artifact.packageName,
+					tachiyomiRuntime.directInstalled.value.map { it.packageName },
+				)
+			if (previewPackageName != null) {
+				if (!tachiyomiRuntime.install(item.artifact)) return null
+				repository.syncRegistrySources()
+			}
+			val source = tachiyomiRuntime.getSourceById(item.source.id)
+			if (source == null && previewPackageName != null) {
+				tachiyomiRuntime.remove(previewPackageName)
+				repository.syncRegistrySources()
+			}
+			return source?.let { TachiyomiSourceOpenResult(it, previewPackageName) }
+		}
+
+		suspend fun unloadTachiyomiPreview(packageName: String): Boolean {
+			val success = tachiyomiRuntime.remove(packageName)
+			if (success) repository.syncRegistrySources()
+			return success
+		}
 
 		fun setContentType(
 			value: ContentType,
@@ -274,6 +296,11 @@ class SourcesCatalogViewModel
 			val result = repository.allMangaSources.mapSortedByCount { it.contentType }
 			return if (isNsfwDisabled) result.filterNot { it == ContentType.HENTAI } else result
 		}
+
+		data class TachiyomiSourceOpenResult(
+			val source: MangaSource,
+			val previewPackageName: String?,
+		)
 
 		private data class CatalogContentState(
 			val query: String?,

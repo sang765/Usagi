@@ -46,6 +46,16 @@ class SourcesCatalogActivity :
 		get() = viewBinding.appbar
 
 	private val viewModel by viewModels<SourcesCatalogViewModel>()
+	private var tachiyomiPreviewPackageName: String? = null
+
+	override fun onResume() {
+		super.onResume()
+		val packageName = tachiyomiPreviewPackageName ?: return
+		tachiyomiPreviewPackageName = null
+		lifecycleScope.launch {
+			viewModel.unloadTachiyomiPreview(packageName)
+		}
+	}
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
@@ -138,7 +148,15 @@ class SourcesCatalogActivity :
 		item: SourceCatalogItem.Tachiyomi,
 		view: View,
 	) {
-		viewModel.getImportedTachiyomiSource(item)?.let { router.openList(it, null, null) }
+		lifecycleScope.launch {
+			val result = viewModel.prepareTachiyomiSource(item)
+			if (result == null) {
+				Snackbar.make(view, R.string.load_failed, Snackbar.LENGTH_LONG).show()
+				return@launch
+			}
+			tachiyomiPreviewPackageName = result.previewPackageName
+			router.openList(result.source, null, null)
+		}
 	}
 
 	private fun toggleTachiyomi(
