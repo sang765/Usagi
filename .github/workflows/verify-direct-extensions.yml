@@ -30,13 +30,10 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
 
-      - name: Format, compile and test
+      - name: Format, compile, test and build debug APK
         run: |
           chmod a+x gradlew
-          ./gradlew spotlessApply compileDebugKotlin testDebugUnitTest --no-daemon --no-configuration-cache --stacktrace
-
-      - name: Build debug APK
-        run: ./gradlew assembleDebug --no-daemon --no-configuration-cache --stacktrace
+          ./gradlew spotlessApply compileDebugKotlin testDebugUnitTest assembleDebug --no-daemon --no-configuration-cache --stacktrace
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
