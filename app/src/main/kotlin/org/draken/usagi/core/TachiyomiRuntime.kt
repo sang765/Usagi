@@ -55,6 +55,12 @@ class TachiyomiRuntime
 		val directInstalled: StateFlow<List<DirectTachiyomiInstalled>>
 			get() = directManager.installed
 
+		val directPluginNames: Map<String, String>
+			get() =
+				directInstalled.value.associate { installed ->
+					installed.packageName to tachiyomiRepositoryPluginName(installed.repositoryUrl, installed.name)
+				}
+
 		suspend fun ensureReady(forceRefresh: Boolean = false) {
 			manager.ensureReady(forceRefresh)
 			ensureDirectReady(forceRefresh)
@@ -104,3 +110,20 @@ class TachiyomiRuntime
 
 		fun isDirectSource(sourceName: String): Boolean = sourceName in directSourceNames
 	}
+
+internal fun tachiyomiRepositoryPluginName(
+	repositoryUrl: String,
+	fallback: String,
+): String {
+	val value = repositoryUrl.trim()
+	val withoutScheme = value.substringAfter("://", value)
+	val authority = withoutScheme.substringBefore('/').lowercase()
+	val path = withoutScheme.substringAfter('/', "").split('/').filter { it.isNotBlank() }
+	val owner =
+		when {
+			authority == "raw.githubusercontent.com" || authority == "github.com" -> path.firstOrNull()
+			authority == "cdn.jsdelivr.net" && path.firstOrNull().equals("gh", true) -> path.getOrNull(1)
+			else -> null
+		}
+	return owner?.takeIf { it.isNotBlank() } ?: fallback
+}

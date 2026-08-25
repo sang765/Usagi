@@ -164,8 +164,11 @@ class SourcesCatalogActivity :
 		view: View,
 	) {
 		lifecycleScope.launch {
+			val isRemoving = shouldRemoveTachiyomiOnToggle(item.isInstalled, item.hasUpdate)
 			val success = viewModel.toggleTachiyomi(item)
-			Snackbar.make(viewBinding.root, if (success) R.string.load_success else R.string.load_failed, Snackbar.LENGTH_LONG).show()
+			if (!isRemoving) {
+				Snackbar.make(viewBinding.root, if (success) R.string.load_success else R.string.load_failed, Snackbar.LENGTH_LONG).show()
+			}
 		}
 	}
 

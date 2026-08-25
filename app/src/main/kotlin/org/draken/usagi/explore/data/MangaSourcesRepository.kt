@@ -166,12 +166,7 @@ class MangaSourcesRepository
 				sources.removeAll { it.isBroken }
 			}
 			if (plugin != null) {
-				val directPluginNames =
-					tachiyomiRuntime
-						?.directInstalled
-						?.value
-						.orEmpty()
-						.associate { it.packageName to it.name }
+				val directPluginNames = tachiyomiRuntime?.directPluginNames.orEmpty()
 				sources.retainAll { sourcePluginName(it, directPluginNames) == plugin }
 			}
 			if (types.isNotEmpty()) {
@@ -447,12 +442,7 @@ class MangaSourcesRepository
 				.conflate()
 
 		fun getPluginNames(): List<String> {
-			val directPluginNames =
-				tachiyomiRuntime
-					?.directInstalled
-					?.value
-					.orEmpty()
-					.associate { it.packageName to it.name }
+			val directPluginNames = tachiyomiRuntime?.directPluginNames.orEmpty()
 			return allMangaSources.mapNotNullTo(HashSet()) { sourcePluginName(it, directPluginNames) }.sorted()
 		}
 
