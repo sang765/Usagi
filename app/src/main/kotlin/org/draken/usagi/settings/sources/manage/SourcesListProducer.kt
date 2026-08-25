@@ -80,7 +80,7 @@ class SourcesListProducer
 			onInvalidated(emptySet())
 		}
 
-		private fun isApkSource(source: MangaSource): Boolean = source.externalPackageName()?.let(tachiyomiRuntime::isDirectApkPackage) == true
+		private fun isApkSource(source: MangaSource): Boolean = source.externalPackageName()?.let(tachiyomiRuntime::isLegacyApkPackage) == true
 
 		private suspend fun buildList(): List<SourceConfigItem> {
 			runCatching { tachiyomiRuntime.ensureDirectReady() }

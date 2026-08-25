@@ -1,5 +1,7 @@
 package org.draken.usagi.settings.sources.manage
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.Menu
@@ -16,6 +18,8 @@ import androidx.recyclerview.widget.RecyclerView
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import org.draken.usagi.R
+import org.draken.usagi.core.model.externalPackageName
+import org.draken.usagi.core.model.getTitle
 import org.draken.usagi.core.nav.AppRouter
 import org.draken.usagi.core.nav.router
 import org.draken.usagi.core.os.AppShortcutManager
@@ -145,7 +149,8 @@ class SourcesManageFragment :
 	}
 
 	override fun onItemDeleteClick(item: SourceConfigItem.SourceItem) {
-		viewModel.deleteApkSource(item.source)
+		val packageName = item.source.externalPackageName() ?: return
+		startActivity(Intent(Intent.ACTION_UNINSTALL_PACKAGE, Uri.parse("package:$packageName")))
 	}
 
 	override fun onCloseTip(tip: SourceConfigItem.Tip) {

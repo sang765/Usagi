@@ -42,6 +42,7 @@ import tsuki.util.runCatchingCancellable
 import java.io.File
 import javax.inject.Inject
 import coil3.Uri as CoilUri
+import org.draken.tsukimix.core.parser.tachiyomi.DirectTachiyomiExtensionManager as DirectExternalManager
 import org.draken.usagi.core.parser.tachiyomi.ExternalMangaRepository as ExternalRepository
 
 class FaviconFetcher(
@@ -107,6 +108,9 @@ class FaviconFetcher(
 	}
 
 	private suspend fun fetchTachiyomiIcon(repository: ExternalRepository): FetchResult {
+		if (DirectExternalManager.getByName(repository.source.name) == null) {
+			return fetchPackageIcon(repository.source.pkgName)
+		}
 		val sourceUrl = repository.getBrowserUrl() ?: (repository.external as? HttpSource)?.getHomeUrl()
 
 		val host = sourceUrl?.let { Uri.parse(it).host?.removePrefix("www.") }

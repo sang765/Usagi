@@ -110,8 +110,21 @@ class TachiyomiRuntime
 
 		fun isDirectSource(sourceName: String): Boolean = sourceName in directSourceNames
 
-		fun isDirectApkPackage(packageName: String): Boolean = directInstalled.value.any { it.packageName == packageName && it.apkUrl != null }
+		fun isDirectPackage(packageName: String): Boolean = directInstalled.value.any { it.packageName == packageName }
+
+		fun isLegacyApkPackage(packageName: String): Boolean =
+			isLegacyTachiyomiPackage(
+				packageName,
+				directInstalled.value.map { it.packageName }.toSet(),
+				installedExtensions.value.map { it.pkgName }.toSet(),
+			)
 	}
+
+internal fun isLegacyTachiyomiPackage(
+	packageName: String,
+	directPackages: Set<String>,
+	legacyPackages: Set<String>,
+): Boolean = packageName !in directPackages && packageName in legacyPackages
 
 internal fun tachiyomiRepositoryPluginName(
 	repositoryUrl: String,

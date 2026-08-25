@@ -3,7 +3,6 @@ package org.draken.usagi.explore.ui
 import android.content.DialogInterface
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.Menu
@@ -19,6 +18,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import dagger.hilt.android.AndroidEntryPoint
 import org.draken.usagi.R
+import org.draken.usagi.core.TachiyomiRuntime
 import org.draken.usagi.core.exceptions.resolve.SnackbarErrorObserver
 import org.draken.usagi.core.model.LocalMangaSource
 import org.draken.usagi.core.model.externalPackageName
@@ -59,6 +59,9 @@ class ExploreFragment :
 
 	@Inject
 	lateinit var settings: AppSettings
+
+	@Inject
+	lateinit var tachiyomiRuntime: TachiyomiRuntime
 
 	override val recyclerView: RecyclerView?
 		get() = viewBinding?.recyclerView
@@ -208,12 +211,17 @@ class ExploreFragment :
 		menu.findItem(R.id.action_unpin).isVisible = selectedSources.all { it.isPinned }
 		menu.findItem(R.id.action_disable)?.isVisible = !viewModel.isAllSourcesEnabled.value &&
 			selectedSources.all {
-				it.mangaSource.externalPackageName() == null &&
+				!isLegacyApkSource(it.mangaSource) &&
+					(
+						it.mangaSource.externalPackageName() == null ||
+							tachiyomiRuntime.isDirectPackage(it.mangaSource.externalPackageName()!!)
+					) &&
 					it.mangaSource !is LocalMangaSource &&
 					it.mangaSource !is org.draken.usagi.core.model.TestMangaSource &&
 					it.mangaSource !is org.draken.usagi.core.model.UnknownMangaSource
 			}
-		menu.findItem(R.id.action_delete)?.isVisible = selectedSources.all { it.mangaSource.externalPackageName() != null }
+		menu.findItem(R.id.action_delete)?.isVisible = selectedSources.all { isLegacyApkSource(it.mangaSource) }
+
 		return super.onPrepareActionMode(controller, mode, menu)
 	}
 
@@ -240,6 +248,7 @@ class ExploreFragment :
 
 			R.id.action_delete -> {
 				selectedSources
+					.filter(::isLegacyApkSource)
 					.mapNotNullTo(LinkedHashSet()) { it.mangaSource.externalPackageName() }
 					.forEach(::uninstallExternalPackage)
 				mode?.finish()
@@ -298,15 +307,9 @@ class ExploreFragment :
 			.show()
 	}
 
+	private fun isLegacyApkSource(source: tsuki.model.MangaSource): Boolean = source.externalPackageName()?.let(tachiyomiRuntime::isLegacyApkPackage) == true
+
 	private fun uninstallExternalPackage(packageName: String) {
-		val uri = Uri.fromParts("package", packageName, null)
-		val action =
-			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-				Intent.ACTION_DELETE
-			} else {
-				@Suppress("DEPRECATION")
-				Intent.ACTION_UNINSTALL_PACKAGE
-			}
-		context?.startActivity(Intent(action, uri))
+		context?.startActivity(Intent(Intent.ACTION_UNINSTALL_PACKAGE, Uri.parse("package:$packageName")))
 	}
 }
