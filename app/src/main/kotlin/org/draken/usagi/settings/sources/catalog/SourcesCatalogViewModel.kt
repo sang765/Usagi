@@ -32,6 +32,7 @@ import org.draken.usagi.list.ui.model.LoadingState
 import org.draken.usagi.settings.sources.manage.plugins.TachiyomiCatalogRepository
 import tsuki.model.ContentType
 import tsuki.model.MangaSource
+import java.io.File
 import java.util.EnumSet
 import java.util.Locale
 import javax.inject.Inject
@@ -109,14 +110,23 @@ class SourcesCatalogViewModel
 					CatalogContentState(query, filter, url, artifacts, loading)
 				},
 				tachiyomiRuntime.directInstalled,
+				tachiyomiRuntime.installedExtensions,
 				db.invalidationTracker.createFlow(TABLE_SOURCES),
 				tachiyomiLoadingPackages,
-			) { state, installed, _, loadingPackages ->
+			) { state, installed, legacyInstalled, _, loadingPackages ->
+
 				if (state.url != null) {
 					if (state.loading) {
 						listOf(LoadingState)
 					} else {
-						buildExternalSourcesList(state.filter, state.query, state.artifacts, installed, loadingPackages)
+						buildExternalSourcesList(
+							state.filter,
+							state.query,
+							state.artifacts,
+							installed,
+							legacyInstalled.map { it.pkgName }.toSet(),
+							loadingPackages,
+						)
 					}
 				} else {
 					buildSourcesList(state.filter, state.query)
@@ -170,8 +180,14 @@ class SourcesCatalogViewModel
 			}
 		}
 
+		suspend fun downloadTachiyomiApk(item: SourceCatalogItem.Tachiyomi): File? {
+			if (!item.canInstallApk) return null
+			return tachiyomiCatalogRepository.downloadApk(item.artifact)
+		}
+
 		suspend fun toggleTachiyomi(item: SourceCatalogItem.Tachiyomi): Boolean =
 			withTachiyomiLoading(item.artifact.packageName) {
+				if (item.isLegacyInstalled) return@withTachiyomiLoading false
 				val success =
 					if (shouldRemoveTachiyomiOnToggle(item.isInstalled, item.hasUpdate)) {
 						tachiyomiRuntime.remove(item.artifact.packageName)
@@ -252,6 +268,7 @@ class SourcesCatalogViewModel
 			query: String?,
 			artifacts: List<TachiyomiExtensionArtifact>,
 			installedExtensions: List<DirectTachiyomiInstalled>,
+			legacyInstalledPackages: Set<String>,
 			loadingPackages: Set<String>,
 		): List<SourceCatalogItem> {
 			val installed = installedExtensions.associateBy { it.packageName }
@@ -263,7 +280,13 @@ class SourcesCatalogViewModel
 						artifact.sources.asSequence().mapNotNull { source ->
 							if (settings.isNsfwContentDisabled && source.contentType == ContentType.HENTAI) return@mapNotNull null
 							if (!matchesTachiyomiCatalogSource(source, artifact, query, filter.locale, filter.types)) return@mapNotNull null
-							SourceCatalogItem.Tachiyomi(source, artifact, installed[artifact.packageName], artifact.packageName in loadingPackages)
+							SourceCatalogItem.Tachiyomi(
+								source,
+								artifact,
+								installed[artifact.packageName],
+								artifact.packageName in legacyInstalledPackages,
+								artifact.packageName in loadingPackages,
+							)
 						}
 					}.sortedBy { it.displayName.lowercase(Locale.ROOT) }
 					.toList()

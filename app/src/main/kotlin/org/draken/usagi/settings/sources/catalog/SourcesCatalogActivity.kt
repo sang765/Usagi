@@ -1,5 +1,6 @@
 package org.draken.usagi.settings.sources.catalog
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
@@ -7,6 +8,7 @@ import android.view.View
 import androidx.activity.viewModels
 import androidx.appcompat.widget.PopupMenu
 import androidx.appcompat.widget.SearchView
+import androidx.core.content.FileProvider
 import androidx.core.graphics.Insets
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
@@ -16,6 +18,7 @@ import com.google.android.material.chip.Chip
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import org.draken.usagi.BuildConfig
 import org.draken.usagi.R
 import org.draken.usagi.core.model.titleResId
 import org.draken.usagi.core.nav.router
@@ -69,6 +72,7 @@ class SourcesCatalogActivity :
 				listener = this,
 				onTachiyomiClick = ::openTachiyomiSource,
 				onTachiyomiInstall = ::toggleTachiyomi,
+				onTachiyomiInstallApk = ::installTachiyomiApk,
 			)
 		with(viewBinding.recyclerView) {
 			setHasFixedSize(true)
@@ -159,6 +163,29 @@ class SourcesCatalogActivity :
 		}
 	}
 
+	private fun installTachiyomiApk(
+		item: SourceCatalogItem.Tachiyomi,
+		view: View,
+	): Boolean {
+		if (!item.canInstallApk) return false
+		lifecycleScope.launch {
+			val apk = viewModel.downloadTachiyomiApk(item)
+			if (apk == null) {
+				Snackbar.make(viewBinding.root, R.string.load_failed, Snackbar.LENGTH_LONG).show()
+				return@launch
+			}
+			val uri = FileProvider.getUriForFile(this@SourcesCatalogActivity, "${BuildConfig.APPLICATION_ID}.files", apk)
+			startActivity(
+				Intent(Intent.ACTION_INSTALL_PACKAGE, uri).apply {
+					addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+					setDataAndType(uri, APK_MIME_TYPE)
+					putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
+				},
+			)
+		}
+		return true
+	}
+
 	private fun toggleTachiyomi(
 		item: SourceCatalogItem.Tachiyomi,
 		view: View,
@@ -231,6 +258,7 @@ class SourcesCatalogActivity :
 	}
 
 	companion object {
+		private const val APK_MIME_TYPE = "application/vnd.android.package-archive"
 		const val EXTRA_EXTERNAL_REPOSITORY_URL = "external_repository_url"
 		const val EXTRA_EXTERNAL_REPOSITORY_TITLE = "external_repository_title"
 	}

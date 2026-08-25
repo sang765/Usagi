@@ -19,7 +19,7 @@ class SourceCatalogItemStateTest {
 				name = "Example extension",
 				packageName = "example.extension",
 				jarUrl = "https://example.com/example.jar",
-				apkUrl = null,
+				apkUrl = "https://example.com/example.apk",
 				iconUrl = null,
 				extensionLib = 1.5,
 				versionCode = 1L,
@@ -48,6 +48,9 @@ class SourceCatalogItemStateTest {
 		assertNotEquals(notInstalledItem, installedItem)
 		assertFalse(notInstalledItem.isInstalled)
 		assertTrue(installedItem.isInstalled)
+		assertTrue(notInstalledItem.canInstallApk)
+		assertFalse(installedItem.canInstallApk)
+		assertFalse(SourceCatalogItem.Tachiyomi(source, artifact, null, isLegacyInstalled = true).canInstallApk)
 	}
 
 	@Test
@@ -59,7 +62,7 @@ class SourceCatalogItemStateTest {
 				name = "Example extension",
 				packageName = "example.extension",
 				jarUrl = "https://example.com/example.jar",
-				apkUrl = null,
+				apkUrl = "https://example.com/example.apk",
 				iconUrl = null,
 				extensionLib = 1.5,
 				versionCode = 1L,

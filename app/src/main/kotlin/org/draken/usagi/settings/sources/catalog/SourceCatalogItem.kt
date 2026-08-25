@@ -24,12 +24,20 @@ sealed interface SourceCatalogItem : ListModel {
 		val source: TachiyomiCatalogSource,
 		val artifact: TachiyomiExtensionArtifact,
 		val installed: DirectTachiyomiInstalled?,
+		val isLegacyInstalled: Boolean = false,
 		val isLoading: Boolean = false,
 	) : SourceCatalogItem {
 		val isInstalled: Boolean
 			get() = installed != null
 
+		val canInstallApk: Boolean
+			get() =
+				artifact.apkUrl?.trim()?.let { it.startsWith("http://") || it.startsWith("https://") } == true &&
+					installed == null &&
+					!isLegacyInstalled
+
 		val hasUpdate: Boolean
+
 			get() {
 				val availableVersion = artifact.versionCode ?: return false
 				val installedVersion = installed?.versionCode ?: return false

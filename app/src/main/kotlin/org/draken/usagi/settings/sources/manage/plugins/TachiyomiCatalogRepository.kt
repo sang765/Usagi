@@ -14,6 +14,7 @@ import org.draken.usagi.core.network.BaseHttpClient
 import org.json.JSONArray
 import org.json.JSONObject
 import tsuki.util.await
+import java.io.File
 import java.io.IOException
 import java.util.Locale
 import javax.inject.Inject
@@ -24,7 +25,7 @@ import javax.inject.Singleton
 class TachiyomiCatalogRepository
 	@Inject
 	constructor(
-		@ApplicationContext context: Context,
+		@ApplicationContext private val context: Context,
 		@BaseHttpClient private val httpClient: OkHttpClient,
 		private val catalogProvider: TachiyomiExtensionCatalogProvider,
 	) {
@@ -103,6 +104,21 @@ class TachiyomiCatalogRepository
 		suspend fun load(url: String): List<TachiyomiExtensionArtifact> =
 			withContext(Dispatchers.IO) {
 				catalogProvider.load(url)
+			}
+
+		suspend fun downloadApk(artifact: TachiyomiExtensionArtifact): File? =
+			withContext(Dispatchers.IO) {
+				val url = artifact.apkUrl?.trim()?.takeIf { it.startsWith("http://") || it.startsWith("https://") } ?: return@withContext null
+				val target = File(context.cacheDir, "tachiyomi-${artifact.packageName}.apk")
+				runCatching {
+					val request = Request.Builder().url(url).build()
+					httpClient.newCall(request).await().use { response ->
+						if (!response.isSuccessful) throw IOException("APK download failed with HTTP ${response.code}")
+						val body = response.body ?: throw IOException("APK response body is empty")
+						target.outputStream().use { output -> body.byteStream().use { input -> input.copyTo(output) } }
+					}
+					target
+				}.onFailure { target.delete() }.getOrNull()
 			}
 
 		fun renameRepository(

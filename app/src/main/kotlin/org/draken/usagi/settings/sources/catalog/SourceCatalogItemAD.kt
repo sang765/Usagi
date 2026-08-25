@@ -40,12 +40,13 @@ fun sourceCatalogItemSourceAD(listener: OnListItemClickListener<SourceCatalogIte
 fun sourceCatalogItemTachiyomiAD(
 	onClick: (SourceCatalogItem.Tachiyomi, View) -> Unit,
 	onInstall: (SourceCatalogItem.Tachiyomi, View) -> Unit,
+	onInstallApk: (SourceCatalogItem.Tachiyomi, View) -> Boolean,
 ) = adapterDelegateViewBinding<SourceCatalogItem.Tachiyomi, ListModel, ItemSourceCatalogBinding>(
 	{ layoutInflater, parent -> ItemSourceCatalogBinding.inflate(layoutInflater, parent, false) },
 ) {
 	var loadingAnimator: ObjectAnimator? = null
 	binding.root.setOnClickListener { v -> if (!item.isLoading) onClick(item, v) }
-	binding.imageViewAdd.setOnClickListener { v -> if (!item.isLoading) onInstall(item, v) }
+	binding.imageViewAdd.setOnClickListener { v -> if (!item.isLoading && !item.isLegacyInstalled) onInstall(item, v) }
 	val basePadding = context.getThemeDimensionPixelOffset(appcompatR.attr.listPreferredItemPaddingEnd, binding.root.paddingStart)
 	binding.root.updatePaddingRelative(end = (basePadding - context.resources.getDimensionPixelOffset(R.dimen.margin_small)).coerceAtLeast(0))
 	bind {
@@ -78,11 +79,19 @@ fun sourceCatalogItemTachiyomiAD(
 		binding.textViewDescription.text = item.description(context)
 		binding.textViewDescription.drawableStart = null
 		binding.imageViewAdd.isVisible = true
+		binding.imageViewAdd.setOnLongClickListener(
+			if (item.canInstallApk && !item.isLoading) {
+				View.OnLongClickListener { v -> onInstallApk(item, v) }
+			} else {
+				null
+			},
+		)
 		if (!item.isLoading) {
 			binding.imageViewAdd.setImageResource(
 				when {
 					item.hasUpdate -> R.drawable.ic_updated
 					item.isInstalled -> R.drawable.ic_delete
+					item.isLegacyInstalled -> R.drawable.ic_check
 					else -> R.drawable.ic_download
 				},
 			)
@@ -91,6 +100,7 @@ fun sourceCatalogItemTachiyomiAD(
 					when {
 						item.hasUpdate -> R.string.update
 						item.isInstalled -> R.string.remove
+						item.isLegacyInstalled -> R.string.done
 						else -> R.string.add
 					},
 				)
