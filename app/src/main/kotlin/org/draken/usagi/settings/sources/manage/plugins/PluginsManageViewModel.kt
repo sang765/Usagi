@@ -120,10 +120,12 @@ class PluginsManageViewModel
 			}
 		}
 
-		fun toggleSelection(jarName: String) {
+		fun toggleSelection(key: String) {
 			val current = selectedPlugins.value
-			selectedPlugins.value = if (jarName in current) current - jarName else current + jarName
+			selectedPlugins.value = if (key in current) current - key else current + key
 		}
+
+		fun toggleExternalSelection(url: String) = toggleSelection(url)
 
 		fun clearSelection() {
 			selectedPlugins.value = emptySet()
@@ -131,18 +133,41 @@ class PluginsManageViewModel
 
 		fun isSelected(jarName: String): Boolean = jarName in selectedPlugins.value
 
-		suspend fun delete(): Boolean =
-			pluginSideloadUseCase.delete(selectedPlugins.value).also {
-				if (it) {
+		fun isExternalSelected(url: String): Boolean = url in selectedPlugins.value
+
+		suspend fun delete(): Boolean {
+			val selected = selectedPlugins.value
+			val pluginNames =
+				pluginsSnapshot
+					.asSequence()
+					.map { it.name }
+					.filter(selected::contains)
+					.toSet()
+			val repositoryUrls =
+				externalRepositoriesSnapshot
+					.asSequence()
+					.map { it.url }
+					.filter(selected::contains)
+					.toSet()
+			val pluginsDeleted = pluginNames.isEmpty() || pluginSideloadUseCase.delete(pluginNames)
+			val repositoriesDeleted = repositoryUrls.all { tachiyomiCatalogRepository.removeRepository(it) }
+			return (pluginsDeleted && repositoriesDeleted).also { success ->
+				if (success) {
 					selectedPlugins.value = emptySet()
 					refresh()
 				}
 			}
+		}
 
 		suspend fun rename(
 			item: PluginManageItem.Plugin,
 			newRawName: String,
 		): Boolean = pluginSideloadUseCase.rename(item.name, newRawName).also { if (it) refresh() }
+
+		fun rename(
+			item: PluginManageItem.ExternalRepository,
+			newRawName: String,
+		): Boolean = tachiyomiCatalogRepository.renameRepository(item.url, newRawName).also { if (it) refresh() }
 
 		fun isInstalled(fileName: String): Boolean = pluginSideloadUseCase.isInstalled(fileName)
 

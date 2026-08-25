@@ -92,7 +92,10 @@ class PluginsManageFragment :
 				onLongClick = ::onLongClick,
 				onClick = ::onClick,
 				onExternalClick = ::onExternalRepositoryClick,
+				onExternalLongClick = ::onExternalLongClick,
+				onExternalRenameClick = ::onExternalRenameClick,
 				isSelected = { item -> viewModel.isSelected(item.name) },
+				isExternalSelected = { item -> viewModel.isExternalSelected(item.url) },
 			)
 		with(binding.recyclerView) {
 			setHasFixedSize(true)
@@ -245,11 +248,35 @@ class PluginsManageFragment :
 	}
 
 	private fun onExternalRepositoryClick(item: PluginManageItem.ExternalRepository) {
+		if (viewModel.selectedPlugins.value.isNotEmpty()) {
+			viewModel.toggleExternalSelection(item.url)
+			return
+		}
 		startActivity(
 			Intent(requireContext(), SourcesCatalogActivity::class.java)
 				.putExtra(SourcesCatalogActivity.EXTRA_EXTERNAL_REPOSITORY_URL, item.url)
 				.putExtra(SourcesCatalogActivity.EXTRA_EXTERNAL_REPOSITORY_TITLE, item.displayName),
 		)
+	}
+
+	private fun onExternalLongClick(item: PluginManageItem.ExternalRepository) {
+		viewModel.toggleExternalSelection(item.url)
+	}
+
+	private fun onExternalRenameClick(item: PluginManageItem.ExternalRepository) {
+		viewLifecycleOwner.lifecycleScope.launch {
+			val newName = askText(R.string.rename, item.displayName, R.string.plugin_name)
+			if (!newName.isNullOrBlank()) {
+				val success = viewModel.rename(item, newName)
+				val binding = viewBinding ?: return@launch
+				Snackbar
+					.make(
+						binding.recyclerView,
+						if (success) R.string.load_success else R.string.load_failed,
+						Snackbar.LENGTH_SHORT,
+					).show()
+			}
+		}
 	}
 
 	private fun onRenameClick(item: PluginManageItem.Plugin) {

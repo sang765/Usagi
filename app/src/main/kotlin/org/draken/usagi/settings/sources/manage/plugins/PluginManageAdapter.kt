@@ -19,7 +19,10 @@ class PluginManageAdapter(
 	onLongClick: (PluginManageItem.Plugin) -> Unit,
 	onClick: (PluginManageItem.Plugin) -> Unit,
 	onExternalClick: (PluginManageItem.ExternalRepository) -> Unit,
+	onExternalLongClick: (PluginManageItem.ExternalRepository) -> Unit,
+	onExternalRenameClick: (PluginManageItem.ExternalRepository) -> Unit,
 	isSelected: (PluginManageItem.Plugin) -> Boolean,
+	isExternalSelected: (PluginManageItem.ExternalRepository) -> Boolean,
 ) : BaseListAdapter<ListModel>() {
 	init {
 		addDelegate(
@@ -28,7 +31,7 @@ class PluginManageAdapter(
 		)
 		addDelegate(
 			ListItemType.INFO,
-			externalRepositoryDelegate(onExternalClick),
+			externalRepositoryDelegate(onExternalClick, onExternalLongClick, onExternalRenameClick, isExternalSelected),
 		)
 		addDelegate(ListItemType.HINT_EMPTY, pluginPlaceholderDelegate())
 	}
@@ -80,20 +83,30 @@ class PluginManageAdapter(
 
 	private fun externalRepositoryDelegate(
 		onClick: (PluginManageItem.ExternalRepository) -> Unit,
+		onLongClick: (PluginManageItem.ExternalRepository) -> Unit,
+		onRenameClick: (PluginManageItem.ExternalRepository) -> Unit,
+		isSelected: (PluginManageItem.ExternalRepository) -> Boolean,
 	) = adapterDelegateViewBinding<PluginManageItem.ExternalRepository, ListModel, ItemSourceConfigBinding>(
 		{ layoutInflater, parent -> ItemSourceConfigBinding.inflate(layoutInflater, parent, false) },
 	) {
 		binding.imageViewIcon.setImageResource(R.drawable.ic_services)
 		binding.imageViewIcon.background = null
-		binding.imageViewMenu.isVisible = false
-		binding.imageViewMenu.setOnClickListener(null)
+		binding.imageViewMenu.isVisible = true
+		binding.imageViewMenu.setImageResource(R.drawable.ic_edit)
+		binding.imageViewMenu.contentDescription = context.getString(R.string.rename)
+		binding.imageViewMenu.setOnClickListener { onRenameClick(item) }
+		binding.imageViewMenu.setOnTouchListener(null)
 		binding.imageViewRemove.isVisible = false
 		binding.imageViewRemove.setOnClickListener(null)
 		binding.imageViewAdd.isVisible = false
 		binding.imageViewAdd.setOnClickListener(null)
-		itemView.setOnLongClickListener(null)
+		itemView.setOnLongClickListener {
+			onLongClick(item)
+			true
+		}
 		itemView.setOnClickListener { onClick(item) }
 		bind {
+			itemView.isSelected = isSelected(item)
 			binding.textViewTitle.text = item.displayName
 			binding.textViewDescription.text =
 				listOf(item.repository, context.getString(R.string.external_source), item.path)

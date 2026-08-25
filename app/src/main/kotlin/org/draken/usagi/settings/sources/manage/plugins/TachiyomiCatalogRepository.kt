@@ -105,6 +105,27 @@ class TachiyomiCatalogRepository
 				catalogProvider.load(url)
 			}
 
+		fun renameRepository(
+			url: String,
+			title: String,
+		): Boolean =
+			runCatching {
+				val value = title.trim()
+				if (value.isBlank()) return false
+				catalogProvider.setRepositoryName(url, value)
+				preferences.edit { putString("$KEY_TITLE:$url", value) }
+			}.isSuccess
+
+		fun removeRepository(url: String): Boolean =
+			runCatching {
+				catalogProvider.removeRepository(url)
+				preferences.edit {
+					putStringSet(KEY_REPOSITORIES, savedRepositoryUrls() - url)
+					remove("$KEY_TITLE:$url")
+					remove("$KEY_PATH:$url")
+				}
+			}.isSuccess
+
 		private suspend fun getJson(url: String): JSONObject {
 			val request =
 				Request
