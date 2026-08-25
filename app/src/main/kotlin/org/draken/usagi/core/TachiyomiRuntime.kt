@@ -109,6 +109,8 @@ class TachiyomiRuntime
 		}
 
 		fun isDirectSource(sourceName: String): Boolean = sourceName in directSourceNames
+
+		fun isDirectApkPackage(packageName: String): Boolean = directInstalled.value.any { it.packageName == packageName && it.apkUrl != null }
 	}
 
 internal fun tachiyomiRepositoryPluginName(

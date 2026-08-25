@@ -16,4 +16,6 @@ interface SourceConfigListener : OnTipCloseListener<SourceConfigItem.Tip> {
 		item: SourceConfigItem.SourceItem,
 		isEnabled: Boolean,
 	)
+
+	fun onItemDeleteClick(item: SourceConfigItem.SourceItem)
 }

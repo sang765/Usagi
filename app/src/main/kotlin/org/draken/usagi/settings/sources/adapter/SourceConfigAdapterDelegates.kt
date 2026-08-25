@@ -31,9 +31,17 @@ fun sourceConfigItemDelegate2(listener: SourceConfigListener) =
 		val eventListener =
 			View.OnClickListener { v ->
 				when (v.id) {
-					R.id.imageView_add -> listener.onItemEnabledChanged(item, true)
-					R.id.imageView_remove -> listener.onItemEnabledChanged(item, false)
-					R.id.imageView_menu -> showSourceMenu(v, item, listener)
+					R.id.imageView_add -> {
+						listener.onItemEnabledChanged(item, true)
+					}
+
+					R.id.imageView_remove -> {
+						if (item.isDeleteAvailable) listener.onItemDeleteClick(item) else listener.onItemEnabledChanged(item, false)
+					}
+
+					R.id.imageView_menu -> {
+						showSourceMenu(v, item, listener)
+					}
 				}
 			}
 		binding.imageViewRemove.setOnClickListener(eventListener)
@@ -43,7 +51,10 @@ fun sourceConfigItemDelegate2(listener: SourceConfigListener) =
 		bind {
 			binding.textViewTitle.text = item.source.getTitle(context)
 			binding.imageViewAdd.isGone = item.isEnabled || !item.isAvailable
-			binding.imageViewRemove.isVisible = item.isEnabled && item.isDisableAvailable
+			binding.imageViewRemove.isVisible = item.isEnabled && (item.isDisableAvailable || item.isDeleteAvailable)
+			binding.imageViewRemove.setImageResource(if (item.isDeleteAvailable) R.drawable.ic_delete else R.drawable.ic_disable)
+			binding.imageViewRemove.contentDescription = context.getString(if (item.isDeleteAvailable) R.string.delete else R.string.disable)
+
 			binding.imageViewMenu.isVisible = item.isEnabled
 			binding.textViewTitle.drawableStart = if (item.isPinned) iconPinned else null
 		

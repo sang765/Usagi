@@ -458,7 +458,7 @@ class MangaSourcesRepository
 					)
 				}
 
-		private fun getSpecialSources(): List<ExternalSource> = allMangaSources.filterIsInstance<ExternalSource>()
+		private fun getSpecialSources(): List<MangaSource> = allMangaSources.filterIsInstance<ExternalSource>().filterNot { tachiyomiRuntime?.isDirectSource(it.name) == true }
 
 		private fun getAllExtSources(): List<MangaSource> = getExternalSources() + getSpecialSources()
 

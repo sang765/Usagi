@@ -15,7 +15,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.draken.usagi.R
 import org.draken.usagi.core.LocalizedAppContext
+import org.draken.usagi.core.TachiyomiRuntime
 import org.draken.usagi.core.db.TABLE_SOURCES
+import org.draken.usagi.core.model.MangaSourceRegistry
+import org.draken.usagi.core.model.externalPackageName
 import org.draken.usagi.core.model.getTitle
 import org.draken.usagi.core.model.isNsfw
 import org.draken.usagi.core.model.unwrap
@@ -35,6 +38,7 @@ class SourcesListProducer
 		@LocalizedAppContext private val context: Context,
 		private val repository: MangaSourcesRepository,
 		private val settings: AppSettings,
+		private val tachiyomiRuntime: TachiyomiRuntime,
 	) : InvalidationTracker.Observer(TABLE_SOURCES) {
 		private val scope = lifecycle.lifecycleScope
 		private var query: String = ""
@@ -55,6 +59,10 @@ class SourcesListProducer
 				}.flowOn(Dispatchers.Default)
 				.onEach { onInvalidated(emptySet()) }
 				.launchIn(scope)
+
+			MangaSourceRegistry.updates
+				.onEach { onInvalidated(emptySet()) }
+				.launchIn(scope)
 		}
 
 		override fun onInvalidated(tables: Set<String>) {
@@ -71,12 +79,14 @@ class SourcesListProducer
 			onInvalidated(emptySet())
 		}
 
+		private fun isApkSource(source: MangaSource): Boolean = source.externalPackageName()?.let(tachiyomiRuntime::isDirectApkPackage) == true
+
 		private suspend fun buildList(): List<SourceConfigItem> {
+			runCatching { tachiyomiRuntime.ensureDirectReady() }
 			val enabledSources =
 				repository.getEnabledSources().filter {
 					val unwrapped = it.unwrap()
 					unwrapped !is org.draken.usagi.core.parser.external.ExternalMangaSource &&
-						unwrapped !is org.draken.tsukimix.core.parser.tachiyomi.model.TachiyomiMangaSource &&
 						unwrapped !is org.draken.usagi.core.model.LocalMangaSource &&
 						unwrapped !is org.draken.usagi.core.model.TestMangaSource &&
 						unwrapped !is org.draken.usagi.core.model.UnknownMangaSource
@@ -99,7 +109,8 @@ class SourcesListProducer
 							isDraggable = false,
 							isAvailable = !isNsfwDisabled || !it.isNsfw(),
 							isPinned = it.name in pinned,
-							isDisableAvailable = isDisableAvailable,
+							isDisableAvailable = isDisableAvailable && !isApkSource(it),
+							isDeleteAvailable = isApkSource(it),
 						)
 					}.ifEmpty {
 						listOf(SourceConfigItem.EmptySearchResult)
@@ -122,7 +133,8 @@ class SourcesListProducer
 						isDraggable = isReorderAvailable,
 						isAvailable = false,
 						isPinned = it.name in pinned,
-						isDisableAvailable = isDisableAvailable,
+						isDisableAvailable = isDisableAvailable && !isApkSource(it),
+						isDeleteAvailable = isApkSource(it),
 					)
 				}
 			}

@@ -14,6 +14,7 @@ sealed interface SourceConfigItem : ListModel {
 		val isAvailable: Boolean,
 		val isPinned: Boolean,
 		val isDisableAvailable: Boolean,
+		val isDeleteAvailable: Boolean = false,
 	) : SourceConfigItem {
 		val isNsfw: Boolean
 			get() = source.isNsfw()

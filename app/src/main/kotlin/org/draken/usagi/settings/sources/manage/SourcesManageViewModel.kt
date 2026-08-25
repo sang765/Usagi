@@ -5,8 +5,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import org.draken.usagi.R
+import org.draken.usagi.core.TachiyomiRuntime
 import org.draken.usagi.core.db.MangaDatabase
 import org.draken.usagi.core.db.removeObserverAsync
+import org.draken.usagi.core.model.externalPackageName
 import org.draken.usagi.core.prefs.AppSettings
 import org.draken.usagi.core.ui.BaseViewModel
 import org.draken.usagi.core.ui.util.ReversibleAction
@@ -26,6 +28,7 @@ class SourcesManageViewModel
 		private val settings: AppSettings,
 		private val repository: MangaSourcesRepository,
 		private val listProducer: SourcesListProducer,
+		private val tachiyomiRuntime: TachiyomiRuntime,
 	) : BaseViewModel() {
 		val content = listProducer.list
 		val onActionDone = MutableEventFlow<ReversibleAction>()
@@ -67,6 +70,16 @@ class SourcesManageViewModel
 			val oldPosItem = snapshot.getOrNull(oldPos) as? SourceConfigItem.SourceItem ?: return false
 			val newPosItem = snapshot.getOrNull(newPos) as? SourceConfigItem.SourceItem ?: return false
 			return oldPosItem.isEnabled && newPosItem.isEnabled && oldPosItem.isPinned == newPosItem.isPinned
+		}
+
+		fun deleteApkSource(source: MangaSource) {
+			val packageName = source.externalPackageName() ?: return
+			launchJob(Dispatchers.Default) {
+				if (tachiyomiRuntime.isDirectApkPackage(packageName)) {
+					tachiyomiRuntime.remove(packageName)
+					repository.syncRegistrySources()
+				}
+			}
 		}
 
 		fun setEnabled(

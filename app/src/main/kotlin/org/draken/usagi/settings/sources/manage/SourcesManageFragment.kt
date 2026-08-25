@@ -144,6 +144,10 @@ class SourcesManageFragment :
 		viewModel.setEnabled(item.source, isEnabled)
 	}
 
+	override fun onItemDeleteClick(item: SourceConfigItem.SourceItem) {
+		viewModel.deleteApkSource(item.source)
+	}
+
 	override fun onCloseTip(tip: SourceConfigItem.Tip) {
 		viewModel.onTipClosed(tip)
 	}

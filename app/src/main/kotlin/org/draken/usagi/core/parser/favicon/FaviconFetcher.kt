@@ -56,7 +56,7 @@ class FaviconFetcher(
 		return when (val repo = mangaRepositoryFactory.create(mangaSource)) {
 			is MangaParserRepository -> fetchParserFavicon(repo)
 			is ExternalMangaRepository -> fetchPluginIcon(repo)
-			is ExternalRepository -> fetchPackageIcon(repo.source.pkgName)
+			is ExternalRepository -> fetchTachiyomiIcon(repo)
 			is EmptyMangaRepository -> throwNSEE(null)
 			is LocalMangaRepository -> imageLoader.fetch(R.drawable.ic_storage, options)
 			else -> throw IllegalArgumentException("Unsupported repo ${repo.javaClass.simpleName}")
@@ -103,6 +103,17 @@ class FaviconFetcher(
 			}
 		}
 		throwNSEE(lastError)
+	}
+
+	private suspend fun fetchTachiyomiIcon(repository: ExternalRepository): FetchResult {
+		val sourceUrl = repository.getBrowserUrl() ?: repository.source.catalogueSource.homeUrl
+		val host = sourceUrl?.let { Uri.parse(it).host?.removePrefix("www.") }
+		if (!host.isNullOrBlank()) {
+			val sizePx = maxOf(options.size.width.pxOrElse { FALLBACK_SIZE }, options.size.height.pxOrElse { FALLBACK_SIZE })
+			val faviconUrl = "https://www.google.com/s2/favicons?domain=$host&sz=$sizePx"
+			imageLoader.fetch(faviconUrl, options)?.let { return it }
+		}
+		return imageLoader.fetch(R.drawable.ic_services, options)
 	}
 
 	private suspend fun fetchPluginIcon(repository: ExternalMangaRepository): FetchResult {
