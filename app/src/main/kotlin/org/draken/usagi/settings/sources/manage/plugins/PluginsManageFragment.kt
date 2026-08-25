@@ -233,14 +233,7 @@ class PluginsManageFragment :
 					showImportResult(false)
 					return@launch
 				}
-				val index =
-					if (indexes.size == 1) {
-						indexes.first()
-					} else {
-						val selected = askSelect(indexes.map { it.path }) ?: return@launch
-						indexes.getOrNull(selected) ?: return@launch
-					}
-				showImportResult(viewModel.importTachiyomiIndex(index))
+				showImportResult(viewModel.importTachiyomiIndexes(indexes))
 			}
 		}
 

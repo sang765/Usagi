@@ -105,7 +105,15 @@ class PluginsManageViewModel
 
 		suspend fun discoverTachiyomiIndexes(input: String): List<TachiyomiIndexFile> = withContext(Dispatchers.Default) { tachiyomiCatalogRepository.discoverIndexFiles(input) }
 
-		suspend fun importTachiyomiIndex(index: TachiyomiIndexFile): Boolean = tachiyomiCatalogRepository.importIndex(index).also { if (it) refresh() }
+		suspend fun importTachiyomiIndexes(indexes: List<TachiyomiIndexFile>): Boolean {
+			for (index in indexes) {
+				if (tachiyomiCatalogRepository.importIndex(index)) {
+					refresh()
+					return true
+				}
+			}
+			return false
+		}
 
 		fun tachiyomiRepositories(): List<TachiyomiExternalRepository> = tachiyomiCatalogRepository.savedRepositories()
 
