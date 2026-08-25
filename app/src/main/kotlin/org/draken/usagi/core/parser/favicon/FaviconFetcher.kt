@@ -17,6 +17,7 @@ import coil3.request.Options
 import coil3.size.pxOrElse
 import coil3.toAndroidUri
 import coil3.toBitmap
+import eu.kanade.tachiyomi.source.online.HttpSource
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.runInterruptible
@@ -106,14 +107,15 @@ class FaviconFetcher(
 	}
 
 	private suspend fun fetchTachiyomiIcon(repository: ExternalRepository): FetchResult {
-		val sourceUrl = repository.getBrowserUrl() ?: repository.source.catalogueSource.homeUrl
+		val sourceUrl = repository.getBrowserUrl() ?: (repository.external as? HttpSource)?.getHomeUrl()
+
 		val host = sourceUrl?.let { Uri.parse(it).host?.removePrefix("www.") }
 		if (!host.isNullOrBlank()) {
 			val sizePx = maxOf(options.size.width.pxOrElse { FALLBACK_SIZE }, options.size.height.pxOrElse { FALLBACK_SIZE })
 			val faviconUrl = "https://www.google.com/s2/favicons?domain=$host&sz=$sizePx"
 			imageLoader.fetch(faviconUrl, options)?.let { return it }
 		}
-		return imageLoader.fetch(R.drawable.ic_services, options)
+		return imageLoader.fetch(R.drawable.ic_services, options) ?: throwNSEE(null)
 	}
 
 	private suspend fun fetchPluginIcon(repository: ExternalMangaRepository): FetchResult {

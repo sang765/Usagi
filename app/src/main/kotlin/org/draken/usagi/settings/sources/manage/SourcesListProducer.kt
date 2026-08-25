@@ -27,6 +27,7 @@ import org.draken.usagi.core.util.ext.lifecycleScope
 import org.draken.usagi.explore.data.MangaSourcesRepository
 import org.draken.usagi.explore.data.SourcesSortOrder
 import org.draken.usagi.settings.sources.model.SourceConfigItem
+import tsuki.model.MangaSource
 import tsuki.util.mapToSet
 import javax.inject.Inject
 
