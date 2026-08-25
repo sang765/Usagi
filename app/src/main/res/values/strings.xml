@@ -948,7 +948,7 @@
 	    <string name="import_tachiyomi">Tachiyomi/Mihon extension repository</string>
     <string name="import_tachiyomi_summary">Import a JSON extension index</string>
     <string name="import_from_github">Import from GitHub</string>
-	<string name="import_github_summary">You can enter a full GitHub URL or Username/Repository. Usagi will automatically find and install the plugin from the latest release.</string>
+	<string name="import_github_summary">Enter a full GitHub URL or Username/Repository. Usagi checks the latest release for a JAR plugin; if none is found, it imports the first valid Tachiyomi/Mihon JSON index.</string>
 	<string name="load_failed">Failed to load plugin</string>
 	<string name="load_from_storage">Import from local storage</string>
 	<string name="load_storage_summary">You can select a JAR file from local storage, that file will be recognized as a plugin.</string>

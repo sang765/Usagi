@@ -206,34 +206,21 @@ class PluginsManageFragment :
 				val input = askText(R.string.import_from_github, "", null)?.trim().orEmpty()
 				if (input.isBlank()) return@launch
 				val releases = viewModel.resolveGithubReleases(input)
-				if (releases.isEmpty()) {
-					showImportResult(false)
+				if (releases.isNotEmpty()) {
+					val release =
+						if (releases.size == 1) {
+							releases.first()
+						} else {
+							val index = askSelect(releases.map { it.fileName }) ?: return@launch
+							releases.getOrNull(index) ?: return@launch
+						}
+					val fileName = PluginFileLoader.resolve(release.fileName)
+					if (viewModel.isInstalled(fileName) && !askOverwrite(fileName)) return@launch
+					showImportResult(viewModel.importFromGithub(release, fileName))
 					return@launch
 				}
-				val release =
-					if (releases.size == 1) {
-						releases.first()
-					} else {
-						val index = askSelect(releases.map { it.fileName }) ?: return@launch
-						releases.getOrNull(index) ?: return@launch
-					}
-				val fileName = PluginFileLoader.resolve(release.fileName)
-				if (viewModel.isInstalled(fileName) && !askOverwrite(fileName)) return@launch
-				showImportResult(viewModel.importFromGithub(release, fileName))
-			}
-		}
-
-		binding.buttonTachiyomi.setOnClickListener {
-			dialog.dismiss()
-			viewLifecycleOwner.lifecycleScope.launch {
-				val input = askText(R.string.import_tachiyomi, "", null)?.trim().orEmpty()
-				if (input.isBlank()) return@launch
 				val indexes = viewModel.discoverTachiyomiIndexes(input)
-				if (indexes.isEmpty()) {
-					showImportResult(false)
-					return@launch
-				}
-				showImportResult(viewModel.importTachiyomiIndexes(indexes))
+				showImportResult(indexes.isNotEmpty() && viewModel.importTachiyomiIndexes(indexes))
 			}
 		}
 
