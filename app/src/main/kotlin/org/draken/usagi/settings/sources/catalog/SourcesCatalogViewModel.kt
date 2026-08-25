@@ -87,18 +87,7 @@ class SourcesCatalogViewModel
 				.stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Eagerly, false)
 
 		val plugins: List<String>
-			get() =
-				if (isExternalCatalog) {
-					emptyList()
-				} else {
-					repository.allMangaSources
-						.mapNotNullTo(HashSet()) {
-							(
-								it as? org.draken.usagi.core.model.PluginMangaSource
-									?: (it as? MangaSourceInfo)?.mangaSource as? org.draken.usagi.core.model.PluginMangaSource
-							)?.jarName
-						}.sorted()
-				}
+			get() = if (isExternalCatalog) emptyList() else repository.getPluginNames()
 
 		private val contentTypes = MutableStateFlow<List<ContentType>>(emptyList())
 

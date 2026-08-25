@@ -151,7 +151,7 @@ class SourcesCatalogActivity :
 		lifecycleScope.launch {
 			val result = viewModel.prepareTachiyomiSource(item)
 			if (result == null) {
-				Snackbar.make(view, R.string.load_failed, Snackbar.LENGTH_LONG).show()
+				Snackbar.make(viewBinding.root, R.string.load_failed, Snackbar.LENGTH_LONG).show()
 				return@launch
 			}
 			tachiyomiPreviewPackageName = result.previewPackageName
@@ -165,8 +165,7 @@ class SourcesCatalogActivity :
 	) {
 		lifecycleScope.launch {
 			val success = viewModel.toggleTachiyomi(item)
-
-			Snackbar.make(view, if (success) R.string.load_success else R.string.load_failed, Snackbar.LENGTH_LONG).show()
+			Snackbar.make(viewBinding.root, if (success) R.string.load_success else R.string.load_failed, Snackbar.LENGTH_LONG).show()
 		}
 	}
 

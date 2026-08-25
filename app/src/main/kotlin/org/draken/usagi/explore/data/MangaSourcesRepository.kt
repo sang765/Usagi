@@ -27,6 +27,7 @@ import org.draken.usagi.core.db.entity.MangaSourceEntity
 import org.draken.usagi.core.model.MangaSourceInfo
 import org.draken.usagi.core.model.MangaSourceRegistry
 import org.draken.usagi.core.model.PluginMangaSource
+import org.draken.usagi.core.model.externalPackageName
 import org.draken.usagi.core.model.getTitle
 import org.draken.usagi.core.model.isExternalSource
 import org.draken.usagi.core.model.isNsfw
@@ -165,10 +166,13 @@ class MangaSourcesRepository
 				sources.removeAll { it.isBroken }
 			}
 			if (plugin != null) {
-				sources.retainAll {
-					val ps = it as? PluginMangaSource ?: (it as? MangaSourceInfo)?.mangaSource as? PluginMangaSource
-					ps?.jarName == plugin
-				}
+				val directPluginNames =
+					tachiyomiRuntime
+						?.directInstalled
+						?.value
+						.orEmpty()
+						.associate { it.packageName to it.name }
+				sources.retainAll { sourcePluginName(it, directPluginNames) == plugin }
 			}
 			if (types.isNotEmpty()) {
 				sources.retainAll { it.contentType in types }
@@ -442,6 +446,16 @@ class MangaSourcesRepository
 			}.distinctUntilChanged()
 				.conflate()
 
+		fun getPluginNames(): List<String> {
+			val directPluginNames =
+				tachiyomiRuntime
+					?.directInstalled
+					?.value
+					.orEmpty()
+					.associate { it.packageName to it.name }
+			return allMangaSources.mapNotNullTo(HashSet()) { sourcePluginName(it, directPluginNames) }.sorted()
+		}
+
 		fun getExternalSources(): List<ExternalMangaSource> =
 			context.packageManager
 				.queryIntentContentProviders(
@@ -511,6 +525,14 @@ class MangaSourcesRepository
 			}
 
 		private fun isCatalogSource(source: MangaSource): Boolean = shouldPersistInSourcesCatalog(source.isExternalSource(), tachiyomiRuntime?.isDirectSource(source.name) == true)
+
+		private fun sourcePluginName(
+			source: MangaSource,
+			directPluginNames: Map<String, String>,
+		): String? {
+			val pluginSource = source as? PluginMangaSource ?: (source as? MangaSourceInfo)?.mangaSource as? PluginMangaSource
+			return pluginSource?.jarName ?: source.externalPackageName()?.let(directPluginNames::get)
+		}
 
 		private fun String.toMangaSourceOrNull(): MangaSource? = MangaSourceRegistry.resolveByName(this)
 	}
