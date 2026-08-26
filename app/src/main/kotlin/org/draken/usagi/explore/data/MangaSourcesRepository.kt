@@ -193,12 +193,22 @@ class MangaSourcesRepository
 					dao.observeAll(!isAllSourcesEnabled, SourcesSortOrder.MANUAL)
 				},
 				registryUpdates,
-			) { skipNsfw, hideBroken, sources, _ ->
-				sources.count {
-					it.source.toMangaSourceOrNull()?.let { s ->
-						!s.isExternalSource() && (!skipNsfw || !s.isNsfw()) && (!hideBroken || !s.isBroken)
-					} == true
-				}
+				observeExternalSources(),
+			) { skipNsfw, hideBroken, sources, _, _ ->
+				val enabledSourceNames = sources.mapToSet { it.source }
+				val enabledCatalogSources =
+					sources.count {
+						it.source.toMangaSourceOrNull()?.let { source ->
+							isCatalogSource(source) && isVisibleInSourceCount(source, skipNsfw, hideBroken)
+						} == true
+					}
+				val alwaysEnabledExternalSources =
+					getAllExtSources()
+						.asSequence()
+						.filter { source -> source.name !in enabledSourceNames && isVisibleInSourceCount(source, skipNsfw, hideBroken) }
+						.distinctBy { it.name }
+						.count()
+				enabledCatalogSources + alwaysEnabledExternalSources
 			}.distinctUntilChanged()
 
 		fun observeAvailableSourcesCount(): Flow<Int> =
@@ -211,8 +221,8 @@ class MangaSourcesRepository
 				registryUpdates,
 			) { skipNsfw, hideBroken, enabledSources, _ ->
 				val enabled = enabledSources.mapToSet { it.source }
-				allMangaSources.count { x ->
-					!x.isExternalSource() && x.name !in enabled && (!skipNsfw || !x.isNsfw()) && (!hideBroken || !x.isBroken)
+				allMangaSources.count { source ->
+					isCatalogSource(source) && source.name !in enabled && isVisibleInSourceCount(source, skipNsfw, hideBroken)
 				}
 			}.distinctUntilChanged()
 
@@ -515,6 +525,12 @@ class MangaSourcesRepository
 			}
 
 		private fun isCatalogSource(source: MangaSource): Boolean = shouldPersistInSourcesCatalog(source.isExternalSource(), tachiyomiRuntime?.isDirectSource(source.name) == true)
+
+		private fun isVisibleInSourceCount(
+			source: MangaSource,
+			skipNsfw: Boolean,
+			hideBroken: Boolean,
+		): Boolean = (!skipNsfw || !source.isNsfw()) && (!hideBroken || !source.isBroken)
 
 		private fun sourcePluginName(
 			source: MangaSource,
