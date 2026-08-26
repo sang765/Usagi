@@ -456,8 +456,6 @@ class MangaSourcesRepository
 			return allMangaSources.mapNotNullTo(HashSet()) { sourcePluginName(it, directPluginNames) }.sorted()
 		}
 
-		fun getPluginName(source: MangaSource): String? = sourcePluginName(source, tachiyomiRuntime?.directPluginNames.orEmpty())
-
 		fun getExternalSources(): List<ExternalMangaSource> =
 			context.packageManager
 				.queryIntentContentProviders(

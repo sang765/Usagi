@@ -58,7 +58,7 @@ class SourcesCatalogViewModel
 			MutableStateFlow(
 				SourcesCatalogFilter(
 					types = emptySet(),
-					locale = Locale.getDefault().language.takeIf { it in getLocalesForPlugin(null) },
+					locale = Locale.getDefault().language.takeIf { it in locales },
 					isNewOnly = false,
 					plugin = null,
 				),
@@ -71,7 +71,15 @@ class SourcesCatalogViewModel
 			get() = externalRepositoryUrl.value?.let { tachiyomiCatalogRepository.savedRepositories().firstOrNull { item -> item.url == it }?.title }
 
 		val locales: Set<String?>
-			get() = getLocalesForPlugin(appliedFilter.value.plugin)
+			get() =
+				if (isExternalCatalog) {
+					buildSet {
+						externalArtifacts.value.flatMapTo(this) { artifact -> artifact.sources.map { normalizeTachiyomiLanguage(it.language) } }
+						add(null)
+					}
+				} else {
+					repository.allMangaSources.mapTo(HashSet<String?>()) { it.locale }.also { it.add(null) }
+				}
 
 		private val hasNativeNewSources =
 			repository.observeHasNewSources().stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Lazily, false)
@@ -145,18 +153,15 @@ class SourcesCatalogViewModel
 			externalRepositoryUrl.value = normalized
 			externalLoading.value = true
 			launchJob(Dispatchers.IO) {
-				try {
-					val cached = tachiyomiCatalogRepository.loadCached(normalized)
-					externalArtifacts.value = cached
-					contentTypes.value = getExternalContentTypes(cached)
-					runCatching { tachiyomiCatalogRepository.load(normalized) }
-						.onSuccess { artifacts ->
-							externalArtifacts.value = artifacts
-							contentTypes.value = getExternalContentTypes(artifacts)
-						}
-				} finally {
-					externalLoading.value = false
-				}
+				val cached = tachiyomiCatalogRepository.loadCached(normalized)
+				externalArtifacts.value = cached
+				contentTypes.value = getExternalContentTypes(cached)
+				runCatching { tachiyomiCatalogRepository.load(normalized) }
+					.onSuccess { artifacts ->
+						externalArtifacts.value = artifacts
+						contentTypes.value = getExternalContentTypes(artifacts)
+					}
+				externalLoading.value = false
 			}
 		}
 
@@ -240,9 +245,7 @@ class SourcesCatalogViewModel
 		}
 
 		fun setPlugin(value: String?) {
-			val filter = appliedFilter.value
-			val locale = filter.locale.takeIf { it in getLocalesForPlugin(value) }
-			appliedFilter.value = filter.copy(plugin = value, locale = locale)
+			appliedFilter.value = appliedFilter.value.copy(plugin = value)
 		}
 
 		private suspend fun buildSourcesList(
@@ -340,24 +343,6 @@ class SourcesCatalogViewModel
 			val artifacts: List<TachiyomiExtensionArtifact>,
 			val loading: Boolean,
 		)
-
-		private fun getLocalesForPlugin(plugin: String?): Set<String?> =
-			if (isExternalCatalog) {
-				buildSet {
-					externalArtifacts.value
-						.filter { plugin == null || it.repositoryUrl == plugin }
-						.flatMapTo(this) { artifact -> artifact.sources.map { normalizeTachiyomiLanguage(it.language) } }
-					add(null)
-				}
-			} else {
-				buildSet {
-					repository.allMangaSources
-						.asSequence()
-						.filter { plugin == null || repository.getPluginName(it) == plugin }
-						.mapTo(this) { it.locale }
-					add(null)
-				}
-			}
 
 		private fun getExternalContentTypes(artifacts: List<TachiyomiExtensionArtifact>): List<ContentType> =
 			artifacts
