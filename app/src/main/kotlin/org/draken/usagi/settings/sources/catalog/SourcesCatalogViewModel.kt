@@ -145,15 +145,18 @@ class SourcesCatalogViewModel
 			externalRepositoryUrl.value = normalized
 			externalLoading.value = true
 			launchJob(Dispatchers.IO) {
-				val cached = tachiyomiCatalogRepository.loadCached(normalized)
-				externalArtifacts.value = cached
-				contentTypes.value = getExternalContentTypes(cached)
-				runCatching { tachiyomiCatalogRepository.load(normalized) }
-					.onSuccess { artifacts ->
-						externalArtifacts.value = artifacts
-						contentTypes.value = getExternalContentTypes(artifacts)
-					}
-				externalLoading.value = false
+				try {
+					val cached = tachiyomiCatalogRepository.loadCached(normalized)
+					externalArtifacts.value = cached
+					contentTypes.value = getExternalContentTypes(cached)
+					runCatching { tachiyomiCatalogRepository.load(normalized) }
+						.onSuccess { artifacts ->
+							externalArtifacts.value = artifacts
+							contentTypes.value = getExternalContentTypes(artifacts)
+						}
+				} finally {
+					externalLoading.value = false
+				}
 			}
 		}
 
