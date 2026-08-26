@@ -41,12 +41,17 @@ fun sourceCatalogItemTachiyomiAD(
 	onClick: (SourceCatalogItem.Tachiyomi, View) -> Unit,
 	onInstall: (SourceCatalogItem.Tachiyomi, View) -> Unit,
 	onInstallApk: (SourceCatalogItem.Tachiyomi, View) -> Boolean,
+	onUninstallApk: (SourceCatalogItem.Tachiyomi, View) -> Unit,
 ) = adapterDelegateViewBinding<SourceCatalogItem.Tachiyomi, ListModel, ItemSourceCatalogBinding>(
 	{ layoutInflater, parent -> ItemSourceCatalogBinding.inflate(layoutInflater, parent, false) },
 ) {
 	var loadingAnimator: ObjectAnimator? = null
 	binding.root.setOnClickListener { v -> if (!item.isLoading) onClick(item, v) }
-	binding.imageViewAdd.setOnClickListener { v -> if (!item.isLoading && !item.isLegacyInstalled) onInstall(item, v) }
+	binding.imageViewAdd.setOnClickListener { v ->
+		if (!item.isLoading) {
+			if (item.isLegacyInstalled) onUninstallApk(item, v) else onInstall(item, v)
+		}
+	}
 	val basePadding = context.getThemeDimensionPixelOffset(appcompatR.attr.listPreferredItemPaddingEnd, binding.root.paddingStart)
 	binding.root.updatePaddingRelative(end = (basePadding - context.resources.getDimensionPixelOffset(R.dimen.margin_small)).coerceAtLeast(0))
 	bind {

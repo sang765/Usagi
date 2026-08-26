@@ -185,6 +185,10 @@ class SourcesCatalogViewModel
 			return tachiyomiCatalogRepository.downloadApk(item.artifact)
 		}
 
+		suspend fun refreshTachiyomiRuntime() {
+			runCatching { tachiyomiRuntime.ensureReady(forceRefresh = true) }
+		}
+
 		suspend fun toggleTachiyomi(item: SourceCatalogItem.Tachiyomi): Boolean =
 			withTachiyomiLoading(item.artifact.packageName) {
 				if (item.isLegacyInstalled) return@withTachiyomiLoading false

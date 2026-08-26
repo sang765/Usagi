@@ -15,11 +15,12 @@ class SourcesCatalogAdapter(
 	onTachiyomiClick: (SourceCatalogItem.Tachiyomi, View) -> Unit,
 	onTachiyomiInstall: (SourceCatalogItem.Tachiyomi, View) -> Unit,
 	onTachiyomiInstallApk: (SourceCatalogItem.Tachiyomi, View) -> Boolean,
+	onTachiyomiUninstallApk: (SourceCatalogItem.Tachiyomi, View) -> Unit,
 ) : BaseListAdapter<ListModel>(),
 	FastScroller.SectionIndexer {
 	init {
 		addDelegate(ListItemType.CHAPTER_LIST, sourceCatalogItemSourceAD(listener))
-		addDelegate(ListItemType.INFO, sourceCatalogItemTachiyomiAD(onTachiyomiClick, onTachiyomiInstall, onTachiyomiInstallApk))
+		addDelegate(ListItemType.INFO, sourceCatalogItemTachiyomiAD(onTachiyomiClick, onTachiyomiInstall, onTachiyomiInstallApk, onTachiyomiUninstallApk))
 		addDelegate(ListItemType.HINT_EMPTY, sourceCatalogItemHintAD())
 		addDelegate(ListItemType.STATE_LOADING, loadingStateAD())
 	}

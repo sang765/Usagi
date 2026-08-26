@@ -1,6 +1,7 @@
 package org.draken.usagi.settings.sources.catalog
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
@@ -50,13 +51,18 @@ class SourcesCatalogActivity :
 
 	private val viewModel by viewModels<SourcesCatalogViewModel>()
 	private var tachiyomiPreviewPackageName: String? = null
+	private var refreshTachiyomiOnResume = false
 
 	override fun onResume() {
 		super.onResume()
-		val packageName = tachiyomiPreviewPackageName ?: return
+		val packageName = tachiyomiPreviewPackageName
 		tachiyomiPreviewPackageName = null
+		val refreshTachiyomi = refreshTachiyomiOnResume
+		refreshTachiyomiOnResume = false
+		if (packageName == null && !refreshTachiyomi) return
 		lifecycleScope.launch {
-			viewModel.unloadTachiyomiPreview(packageName)
+			if (refreshTachiyomi) viewModel.refreshTachiyomiRuntime()
+			if (packageName != null) viewModel.unloadTachiyomiPreview(packageName)
 		}
 	}
 
@@ -73,6 +79,7 @@ class SourcesCatalogActivity :
 				onTachiyomiClick = ::openTachiyomiSource,
 				onTachiyomiInstall = ::toggleTachiyomi,
 				onTachiyomiInstallApk = ::installTachiyomiApk,
+				onTachiyomiUninstallApk = ::uninstallTachiyomiApk,
 			)
 		with(viewBinding.recyclerView) {
 			setHasFixedSize(true)
@@ -175,6 +182,7 @@ class SourcesCatalogActivity :
 				return@launch
 			}
 			val uri = FileProvider.getUriForFile(this@SourcesCatalogActivity, "${BuildConfig.APPLICATION_ID}.files", apk)
+			refreshTachiyomiOnResume = true
 			startActivity(
 				Intent(Intent.ACTION_INSTALL_PACKAGE, uri).apply {
 					addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -184,6 +192,18 @@ class SourcesCatalogActivity :
 			)
 		}
 		return true
+	}
+
+	private fun uninstallTachiyomiApk(
+		item: SourceCatalogItem.Tachiyomi,
+		view: View,
+	) {
+		if (!item.isLegacyInstalled) return
+		refreshTachiyomiOnResume = true
+		startActivity(
+			Intent(Intent.ACTION_UNINSTALL_PACKAGE, Uri.parse("package:${item.artifact.packageName}"))
+				.putExtra(Intent.EXTRA_RETURN_RESULT, true),
+		)
 	}
 
 	private fun toggleTachiyomi(
