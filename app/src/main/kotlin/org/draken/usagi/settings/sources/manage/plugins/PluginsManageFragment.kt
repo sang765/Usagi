@@ -205,22 +205,26 @@ class PluginsManageFragment :
 			viewLifecycleOwner.lifecycleScope.launch {
 				val input = askText(R.string.import_from_github, "", null)?.trim().orEmpty()
 				if (input.isBlank()) return@launch
-				val releases = viewModel.resolveGithubReleases(input)
-				if (releases.isNotEmpty()) {
-					val release =
-						if (releases.size == 1) {
-							releases.first()
-						} else {
-							val index = askSelect(releases.map { it.fileName }) ?: return@launch
-							releases.getOrNull(index) ?: return@launch
-						}
-					val fileName = PluginFileLoader.resolve(release.fileName)
-					if (viewModel.isInstalled(fileName) && !askOverwrite(fileName)) return@launch
-					showImportResult(viewModel.importFromGithub(release, fileName))
+				val indexes = viewModel.discoverTachiyomiIndexes(input)
+				if (indexes.isNotEmpty()) {
+					showImportResult(viewModel.importTachiyomiIndexes(indexes))
 					return@launch
 				}
-				val indexes = viewModel.discoverTachiyomiIndexes(input)
-				showImportResult(indexes.isNotEmpty() && viewModel.importTachiyomiIndexes(indexes))
+				val releases = viewModel.resolveGithubReleases(input)
+				if (releases.isEmpty()) {
+					showImportResult(false)
+					return@launch
+				}
+				val release =
+					if (releases.size == 1) {
+						releases.first()
+					} else {
+						val index = askSelect(releases.map { it.fileName }) ?: return@launch
+						releases.getOrNull(index) ?: return@launch
+					}
+				val fileName = PluginFileLoader.resolve(release.fileName)
+				if (viewModel.isInstalled(fileName) && !askOverwrite(fileName)) return@launch
+				showImportResult(viewModel.importFromGithub(release, fileName))
 			}
 		}
 
