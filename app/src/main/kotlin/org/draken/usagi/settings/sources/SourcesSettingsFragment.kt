@@ -20,6 +20,7 @@ import org.draken.usagi.core.util.ext.observe
 import org.draken.usagi.core.util.ext.setDefaultValueCompat
 import org.draken.usagi.explore.data.MangaSourcesRepository
 import org.draken.usagi.explore.data.SourcesSortOrder
+import org.draken.usagi.settings.sources.manage.plugins.TachiyomiCatalogRepository
 import org.draken.usagi.settings.utils.MultiAutoCompleteTextViewPreference
 import tsuki.util.names
 import javax.inject.Inject
@@ -35,6 +36,9 @@ class SourcesSettingsFragment :
 
 	@Inject
 	lateinit var sourcesRepository: MangaSourcesRepository
+
+	@Inject
+	lateinit var tachiyomiCatalogRepository: TachiyomiCatalogRepository
 
 	override fun onCreatePreferences(
 		savedInstanceState: Bundle?,
@@ -142,7 +146,7 @@ class SourcesSettingsFragment :
 	}
 
 	private fun updatePluginsSummary() {
-		val count = mangaDynamicRepository.get().size
+		val count = mangaDynamicRepository.get().size + tachiyomiCatalogRepository.savedRepositories().size
 		findPreference<Preference>("plugins_manager")?.summary =
 			resources.getQuantityStringSafe(R.plurals.items, count, count)
 		hideEmptyCatalog()
