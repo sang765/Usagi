@@ -58,7 +58,7 @@ class SourcesCatalogViewModel
 			MutableStateFlow(
 				SourcesCatalogFilter(
 					types = emptySet(),
-					locale = Locale.getDefault().language.takeIf { it in locales },
+					locale = Locale.getDefault().language.takeIf { it in getLocalesForPlugin(null) },
 					isNewOnly = false,
 					plugin = null,
 				),
