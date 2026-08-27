@@ -6,11 +6,11 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import org.draken.tsukimix.core.parser.external.model.MangaResult
 import org.draken.tsukimix.core.parser.tachiyomi.DirectTachiyomiExtensionManager
 import org.draken.tsukimix.core.parser.tachiyomi.DirectTachiyomiInstalled
 import org.draken.tsukimix.core.parser.tachiyomi.TachiyomiExtensionArtifact
 import org.draken.tsukimix.core.parser.tachiyomi.TachiyomiExtensionManager
-import org.draken.tsukimix.core.parser.tachiyomi.model.TachiyomiLoadResult
 import org.draken.tsukimix.core.parser.tachiyomi.model.TachiyomiMangaSource
 import org.draken.usagi.core.model.MangaSourceRegistry
 import java.util.concurrent.ConcurrentHashMap
@@ -34,10 +34,10 @@ class TachiyomiRuntime
 				return directManagerProvider.get()
 			}
 
-		val installedExtensions: StateFlow<List<TachiyomiLoadResult.Success>>
+		val installedExtensions: StateFlow<List<MangaResult.Success>>
 			get() = manager.installedExtensions
 
-		val failedExtensions: StateFlow<List<TachiyomiLoadResult.Error>>
+		val failedExtensions: StateFlow<List<MangaResult.Error>>
 			get() = manager.failedExtensions
 
 		val isLoading: StateFlow<Boolean>
