@@ -85,7 +85,7 @@ class MangaSourcesRepository
 				).let { enabled ->
 					val external = getAllExtSources()
 					val list = ArrayList<MangaSourceInfo>(enabled.size + external.size)
-					external.mapTo(list) { MangaSourceInfo(it, isEnabled = true, isPinned = true) }
+					external.mapTo(list) { MangaSourceInfo(it, isEnabled = true, isPinned = it !is ExternalSource) }
 					list.addAll(enabled)
 					list
 				}
@@ -240,7 +240,7 @@ class MangaSourcesRepository
 			}.flattenLatest().combine(observeExternalSources()) { enabled, external ->
 				val external = external + getSpecialSources()
 				val list = ArrayList<MangaSourceInfo>(enabled.size + external.size)
-				external.mapTo(list) { MangaSourceInfo(it, isEnabled = true, isPinned = true) }
+				external.mapTo(list) { MangaSourceInfo(it, isEnabled = true, isPinned = it !is ExternalSource) }
 				list.addAll(enabled)
 				list
 			}

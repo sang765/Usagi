@@ -42,6 +42,29 @@ class FaviconView
 			}
 		}
 
+		fun setImageAsync(
+			url: String?,
+			fallbackName: String,
+		): Disposable {
+			val fallbackFactory: (ImageRequest) -> Image? = { request ->
+				FaviconDrawable(request.context, iconStyle, fallbackName).asImage()
+			}
+			val placeholderFactory: (ImageRequest) -> Image? =
+				if (context.isAnimationsEnabled) {
+					{ request -> AnimatedFaviconDrawable(request.context, iconStyle, fallbackName).asImage() }
+				} else {
+					fallbackFactory
+				}
+			return enqueueRequest(
+				newRequestBuilder()
+					.data(url)
+					.error(fallbackFactory)
+					.fallback(fallbackFactory)
+					.placeholder(placeholderFactory)
+					.build(),
+			)
+		}
+
 		fun setImageAsync(mangaSource: MangaSource): Disposable {
 			val fallbackFactory: (ImageRequest) -> Image? = { request ->
 				FaviconDrawable(request.context, iconStyle, mangaSource.name).asImage()

@@ -31,11 +31,11 @@ class TachiyomiCatalogRepository
 	) {
 		private val preferences = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
 
-		suspend fun discoverIndexFiles(input: String): List<TachiyomiIndexFile> =
+		suspend fun discoverIndexFilesResult(input: String): Result<List<TachiyomiIndexFile>> =
 			withContext(Dispatchers.IO) {
 				runCatching {
 					directIndexFile(input)?.let { return@runCatching listOf(it) }
-					val repository = parseRepository(input) ?: return@runCatching emptyList()
+					val repository = parseRepository(input) ?: throw IOException("Invalid GitHub repository or JSON URL: $input")
 					val repositoryJson = getJson("https://api.github.com/repos/${repository.owner}/${repository.name}")
 					val branch = repositoryJson.optString("default_branch").ifBlank { "main" }
 					val tree =
@@ -43,35 +43,53 @@ class TachiyomiCatalogRepository
 							"https://api.github.com/repos/${repository.owner}/${repository.name}/git/trees/${Uri.encode(branch)}?recursive=1",
 						)
 					val entries = tree.optJSONArray("tree") ?: JSONArray()
-					buildList {
-						for (index in 0 until entries.length()) {
-							val entry = entries.optJSONObject(index) ?: continue
-							val path = entry.optString("path")
-							if (entry.optString("type") != "blob" || !path.endsWith(".json", ignoreCase = true)) continue
+					val defaultBranchIndexes =
+						buildList {
+							for (index in 0 until entries.length()) {
+								val entry = entries.optJSONObject(index) ?: continue
+								val path = entry.optString("path")
+								if (entry.optString("type") != "blob" || !path.endsWith(".json", ignoreCase = true)) continue
+								val encodedPath = path.split('/').joinToString("/") { Uri.encode(it) }
+								add(
+									TachiyomiIndexFile(
+										repository = "${repository.owner}/${repository.name}",
+										title = repository.owner,
+										path = path,
+										url = "https://raw.githubusercontent.com/${repository.owner}/${repository.name}/${Uri.encode(branch)}/$encodedPath",
+									),
+								)
+							}
+						}
+					val repoBranchIndexes =
+						STANDARD_INDEX_PATHS.map { path ->
 							val encodedPath = path.split('/').joinToString("/") { Uri.encode(it) }
-							add(
-								TachiyomiIndexFile(
-									repository = "${repository.owner}/${repository.name}",
-									title = repository.owner,
-									path = path,
-									url = "https://raw.githubusercontent.com/${repository.owner}/${repository.name}/${Uri.encode(branch)}/$encodedPath",
-								),
+							TachiyomiIndexFile(
+								repository = "${repository.owner}/${repository.name}",
+								title = repository.owner,
+								path = path,
+								url = "https://raw.githubusercontent.com/${repository.owner}/${repository.name}/repo/$encodedPath",
 							)
 						}
-					}.sortedBy { it.path.lowercase(Locale.ROOT) }
-				}.getOrDefault(emptyList())
+					(repoBranchIndexes + defaultBranchIndexes)
+						.distinctBy { it.url }
+						.sortedWith(compareBy<TachiyomiIndexFile> { indexPriority(it.path) }.thenBy { it.path.lowercase(Locale.ROOT) })
+				}
 			}
 
-		suspend fun importIndex(index: TachiyomiIndexFile): Boolean =
+		suspend fun discoverIndexFiles(input: String): List<TachiyomiIndexFile> = discoverIndexFilesResult(input).getOrDefault(emptyList())
+
+		suspend fun importIndexResult(index: TachiyomiIndexFile): Result<Unit> =
 			withContext(Dispatchers.IO) {
 				runCatching {
 					val url =
 						index.url.trim().takeIf { it.startsWith("http://") || it.startsWith("https://") }
-							?: return@runCatching false
+							?: throw IOException("Invalid Tachiyomi index URL: ${index.url}")
 					val artifacts = catalogProvider.load(url)
-					if (artifacts.isEmpty() && !catalogProvider.lastLoadError.isNullOrBlank()) {
-						return@runCatching false
+					val loadError = catalogProvider.lastLoadError
+					if (artifacts.isEmpty() && !loadError.isNullOrBlank()) {
+						throw IOException(loadError)
 					}
+					if (artifacts.isEmpty()) throw IOException("Tachiyomi index contains no compatible extensions: $url")
 					catalogProvider.saveRepository(url)
 					catalogProvider.setRepositoryName(url, index.title)
 					val repositories = savedRepositoryUrls().toMutableSet()
@@ -81,9 +99,10 @@ class TachiyomiCatalogRepository
 						putString("$KEY_PATH:$url", index.path)
 						putString("$KEY_TITLE:$url", index.title)
 					}
-					true
-				}.getOrDefault(false)
+				}
 			}
+
+		suspend fun importIndex(index: TachiyomiIndexFile): Boolean = importIndexResult(index).isSuccess
 
 		fun savedRepositories(): List<TachiyomiExternalRepository> =
 			savedRepositoryUrls()
@@ -106,20 +125,24 @@ class TachiyomiCatalogRepository
 				catalogProvider.load(url)
 			}
 
-		suspend fun downloadApk(artifact: TachiyomiExtensionArtifact): File? =
+		suspend fun downloadApkResult(artifact: TachiyomiExtensionArtifact): Result<File> =
 			withContext(Dispatchers.IO) {
-				val url = artifact.apkUrl?.trim()?.takeIf { it.startsWith("http://") || it.startsWith("https://") } ?: return@withContext null
+				val url =
+					artifact.apkUrl?.trim()?.takeIf { it.startsWith("http://") || it.startsWith("https://") }
+						?: return@withContext Result.failure(IOException("Invalid APK URL for ${artifact.packageName}"))
 				val target = File(context.cacheDir, "tachiyomi-${artifact.packageName}.apk")
 				runCatching {
 					val request = Request.Builder().url(url).build()
 					httpClient.newCall(request).await().use { response ->
-						if (!response.isSuccessful) throw IOException("APK download failed with HTTP ${response.code}")
-						val body = response.body ?: throw IOException("APK response body is empty")
+						if (!response.isSuccessful) throw IOException("APK download failed with HTTP ${response.code}: $url")
+						val body = response.body ?: throw IOException("APK response body is empty: $url")
 						target.outputStream().use { output -> body.byteStream().use { input -> input.copyTo(output) } }
 					}
 					target
-				}.onFailure { target.delete() }.getOrNull()
+				}.onFailure { target.delete() }
 			}
+
+		suspend fun downloadApk(artifact: TachiyomiExtensionArtifact): File? = downloadApkResult(artifact).getOrNull()
 
 		fun renameRepository(
 			url: String,
@@ -220,8 +243,17 @@ class TachiyomiCatalogRepository
 			val name: String,
 		)
 
+		private fun indexPriority(path: String): Int =
+			when (path.lowercase(Locale.ROOT)) {
+				"repo/index.min.json", "index.min.json" -> 0
+				"repo/index.json", "index.json" -> 1
+				else -> 2
+			}
+
 		private companion object {
+			val STANDARD_INDEX_PATHS = listOf("index.min.json", "index.json")
 			const val PREFERENCES = "tachiyomi_catalog"
+
 			const val KEY_REPOSITORIES = "repositories"
 			const val KEY_TITLE = "title"
 			const val KEY_PATH = "path"

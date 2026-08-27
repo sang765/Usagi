@@ -82,20 +82,25 @@ class UpdatePluginsProvider
 			}
 		}
 
-		suspend fun installPlugin(
+		suspend fun installPluginResult(
 			release: ExternalPluginDto,
 			fileName: String,
-		): Boolean =
+		): Result<Unit> =
 			withContext(Dispatchers.Default) {
 				runCatchingCancellable {
 					val pluginsDir = mangaDynamicRepository.getDir()
 					val outFile = File(pluginsDir, fileName)
 					val ok = replacePlugin(release.downloadUrl, outFile)
-					if (!ok) throw IOException()
+					if (!ok) throw IOException("Failed to download plugin JAR: ${release.downloadUrl}")
 					saveDto(fileName, release.repository, release.tag)
 					reloadPlugins(pluginsDir)
-				}.isSuccess
+				}
 			}
+
+		suspend fun installPlugin(
+			release: ExternalPluginDto,
+			fileName: String,
+		): Boolean = installPluginResult(release, fileName).isSuccess
 
 		private suspend fun reloadPlugins(pluginsDir: File) {
 			mangaDynamicRepository.load(pluginsDir)

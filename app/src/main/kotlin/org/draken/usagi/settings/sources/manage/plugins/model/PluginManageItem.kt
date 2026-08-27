@@ -13,6 +13,9 @@ sealed interface PluginManageItem : ListModel {
 		val displayName: String
 			get() = name.removeSuffix(".jar")
 
+		val iconUrl: String?
+			get() = repository?.githubAvatarUrl()
+
 		val hasUpdate: Boolean
 			get() = !latestTag.isNullOrBlank() && latestTag != installedTag
 
@@ -28,6 +31,9 @@ sealed interface PluginManageItem : ListModel {
 		val displayName: String
 			get() = title.ifBlank { path.substringBeforeLast('/').ifBlank { path } }
 
+		val iconUrl: String?
+			get() = repository.githubAvatarUrl()
+
 		override fun areItemsTheSame(other: ListModel): Boolean = other is ExternalRepository && url == other.url
 	}
 
@@ -38,3 +44,10 @@ sealed interface PluginManageItem : ListModel {
 		override fun areItemsTheSame(other: ListModel): Boolean = other is Placeholder && titleResId == other.titleResId && summaryResId == other.summaryResId
 	}
 }
+
+private fun String.githubAvatarUrl(): String? {
+	val owner = substringBefore('/').trim()
+	return owner.takeIf { it.isNotBlank() && it != this && it.matches(GITHUB_OWNER_REGEX) }?.let { "https://github.com/$it.png" }
+}
+
+private val GITHUB_OWNER_REGEX = Regex("[A-Za-z0-9_.-]+")

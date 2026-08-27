@@ -1,5 +1,6 @@
 package org.draken.usagi.settings.sources.manage.plugins
 
+import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
@@ -8,6 +9,7 @@ import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.LinearInterpolator
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.view.ActionMode
@@ -25,6 +27,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.draken.usagi.R
+import org.draken.usagi.core.nav.router
 import org.draken.usagi.core.parser.PluginFileLoader
 import org.draken.usagi.core.ui.BaseFragment
 import org.draken.usagi.core.ui.dialog.buildAlertDialog
@@ -48,6 +51,7 @@ class PluginsManageFragment :
 	RecyclerViewOwner {
 	private val viewModel by viewModels<PluginsManageViewModel>()
 	private var pluginsAdapter: PluginManageAdapter? = null
+	private var importAnimator: ObjectAnimator? = null
 
 	private val launcher =
 		registerForActivityResult(
@@ -66,7 +70,12 @@ class PluginsManageFragment :
 					if (pluginName.isBlank()) return@launch
 					val fileName = PluginFileLoader.resolve(pluginName)
 					if (viewModel.isInstalled(fileName) && !askOverwrite(fileName)) return@launch
-					showImportResult(viewModel.importFromUri(uri, fileName))
+					startImportAnimation()
+					try {
+						showImportResult(viewModel.importFromUriResult(uri, fileName))
+					} finally {
+						stopImportAnimation()
+					}
 				}
 			}
 		}
@@ -179,6 +188,7 @@ class PluginsManageFragment :
 		val actionBar = (activity as? androidx.appcompat.app.AppCompatActivity)?.supportActionBar
 		actionBar?.setHomeAsUpIndicator(null)
 		pluginsAdapter = null
+		stopImportAnimation()
 		super.onDestroyView()
 	}
 
@@ -205,26 +215,32 @@ class PluginsManageFragment :
 			viewLifecycleOwner.lifecycleScope.launch {
 				val input = askText(R.string.import_from_github, "", null)?.trim().orEmpty()
 				if (input.isBlank()) return@launch
-				val indexes = viewModel.discoverTachiyomiIndexes(input)
-				if (indexes.isNotEmpty()) {
-					showImportResult(viewModel.importTachiyomiIndexes(indexes))
-					return@launch
-				}
-				val releases = viewModel.resolveGithubReleases(input)
-				if (releases.isEmpty()) {
-					showImportResult(false)
-					return@launch
-				}
-				val release =
-					if (releases.size == 1) {
-						releases.first()
-					} else {
-						val index = askSelect(releases.map { it.fileName }) ?: return@launch
-						releases.getOrNull(index) ?: return@launch
+				startImportAnimation()
+				try {
+					val indexesResult = viewModel.discoverTachiyomiIndexesResult(input)
+					val indexes = indexesResult.getOrDefault(emptyList())
+					if (indexes.isNotEmpty()) {
+						showImportResult(viewModel.importTachiyomiIndexesResult(indexes))
+						return@launch
 					}
-				val fileName = PluginFileLoader.resolve(release.fileName)
-				if (viewModel.isInstalled(fileName) && !askOverwrite(fileName)) return@launch
-				showImportResult(viewModel.importFromGithub(release, fileName))
+					val releases = viewModel.resolveGithubReleases(input)
+					if (releases.isEmpty()) {
+						showImportFailure(indexesResult.exceptionOrNull() ?: IllegalStateException("No compatible plugin or Tachiyomi index found: $input"))
+						return@launch
+					}
+					val release =
+						if (releases.size == 1) {
+							releases.first()
+						} else {
+							val index = askSelect(releases.map { it.fileName }) ?: return@launch
+							releases.getOrNull(index) ?: return@launch
+						}
+					val fileName = PluginFileLoader.resolve(release.fileName)
+					if (viewModel.isInstalled(fileName) && !askOverwrite(fileName)) return@launch
+					showImportResult(viewModel.importFromGithubResult(release, fileName))
+				} finally {
+					stopImportAnimation()
+				}
 			}
 		}
 
@@ -390,14 +406,40 @@ class PluginsManageFragment :
 			}
 		}
 
-	private fun showImportResult(isSuccess: Boolean) {
+	private fun showImportResult(outcome: PluginsManageViewModel.ImportOutcome) {
+		if (outcome is PluginsManageViewModel.ImportOutcome.Failure) {
+			showImportFailure(outcome.error)
+			return
+		}
 		val binding = viewBinding ?: return
-		Snackbar
-			.make(
-				binding.recyclerView,
-				if (isSuccess) R.string.load_success else R.string.load_failed,
-				Snackbar.LENGTH_LONG,
-			).show()
+		Snackbar.make(binding.recyclerView, R.string.load_success, Snackbar.LENGTH_LONG).show()
+	}
+
+	private fun showImportFailure(error: Throwable) {
+		if (!isAdded) return
+		router.showErrorDialog(error)
+	}
+
+	private fun startImportAnimation() {
+		val fab = viewBinding?.fabImport ?: return
+		importAnimator?.cancel()
+		fab.isEnabled = false
+		importAnimator =
+			ObjectAnimator.ofFloat(fab, View.ROTATION, 0f, 360f).apply {
+				duration = 800L
+				interpolator = LinearInterpolator()
+				repeatCount = ObjectAnimator.INFINITE
+				start()
+			}
+	}
+
+	private fun stopImportAnimation() {
+		importAnimator?.cancel()
+		importAnimator = null
+		viewBinding?.fabImport?.apply {
+			rotation = 0f
+			isEnabled = true
+		}
 	}
 
 	private companion object {

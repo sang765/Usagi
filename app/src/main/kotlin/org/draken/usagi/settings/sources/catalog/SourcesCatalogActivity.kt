@@ -93,6 +93,9 @@ class SourcesCatalogActivity :
 			this,
 			ReversibleActionObserver(viewBinding.recyclerView),
 		)
+		viewModel.onExternalError.observeEvent(this) { error ->
+			if (!isFinishing && !isDestroyed) router.showErrorDialog(error)
+		}
 		viewModel.uiState.observe(this, ::updateFilters)
 		addMenuProvider(SourcesCatalogMenuProvider(this, viewModel, this))
 	}
@@ -160,13 +163,14 @@ class SourcesCatalogActivity :
 		view: View,
 	) {
 		lifecycleScope.launch {
-			val result = viewModel.prepareTachiyomiSource(item)
-			if (result == null) {
-				Snackbar.make(viewBinding.root, R.string.load_failed, Snackbar.LENGTH_LONG).show()
-				return@launch
-			}
-			tachiyomiPreviewPackageName = result.previewPackageName
-			router.openList(result.source, null, null)
+			val result = viewModel.prepareTachiyomiSourceResult(item)
+			val source =
+				result.getOrElse {
+					router.showErrorDialog(it)
+					return@launch
+				}
+			tachiyomiPreviewPackageName = source.previewPackageName
+			router.openList(source.source, null, null)
 		}
 	}
 
@@ -176,11 +180,11 @@ class SourcesCatalogActivity :
 	): Boolean {
 		if (!item.canInstallApk) return false
 		lifecycleScope.launch {
-			val apk = viewModel.downloadTachiyomiApk(item)
-			if (apk == null) {
-				Snackbar.make(viewBinding.root, R.string.load_failed, Snackbar.LENGTH_LONG).show()
-				return@launch
-			}
+			val apk =
+				viewModel.downloadTachiyomiApkResult(item).getOrElse {
+					router.showErrorDialog(it)
+					return@launch
+				}
 			val uri = FileProvider.getUriForFile(this@SourcesCatalogActivity, "${BuildConfig.APPLICATION_ID}.files", apk)
 			refreshTachiyomiOnResume = true
 			startActivity(
@@ -212,9 +216,13 @@ class SourcesCatalogActivity :
 	) {
 		lifecycleScope.launch {
 			val isRemoving = shouldRemoveTachiyomiOnToggle(item.isInstalled, item.hasUpdate)
-			val success = viewModel.toggleTachiyomi(item)
+			val result = viewModel.toggleTachiyomiResult(item)
+			result.exceptionOrNull()?.let {
+				router.showErrorDialog(it)
+				return@launch
+			}
 			if (!isRemoving) {
-				Snackbar.make(viewBinding.root, if (success) R.string.load_success else R.string.load_failed, Snackbar.LENGTH_LONG).show()
+				Snackbar.make(viewBinding.root, R.string.load_success, Snackbar.LENGTH_LONG).show()
 			}
 		}
 	}

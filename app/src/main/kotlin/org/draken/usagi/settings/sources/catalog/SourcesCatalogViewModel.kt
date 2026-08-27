@@ -3,6 +3,7 @@ package org.draken.usagi.settings.sources.catalog
 import androidx.annotation.WorkerThread
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -33,6 +34,7 @@ import org.draken.usagi.settings.sources.manage.plugins.TachiyomiCatalogReposito
 import tsuki.model.ContentType
 import tsuki.model.MangaSource
 import java.io.File
+import java.io.IOException
 import java.util.EnumSet
 import java.util.Locale
 import javax.inject.Inject
@@ -48,6 +50,7 @@ class SourcesCatalogViewModel
 		private val tachiyomiRuntime: TachiyomiRuntime,
 	) : BaseViewModel() {
 		val onActionDone = MutableEventFlow<ReversibleAction>()
+		val onExternalError = MutableEventFlow<Throwable>()
 
 		private val externalRepositoryUrl = MutableStateFlow<String?>(null)
 		private val externalArtifacts = MutableStateFlow<List<TachiyomiExtensionArtifact>>(emptyList())
@@ -153,15 +156,22 @@ class SourcesCatalogViewModel
 			externalRepositoryUrl.value = normalized
 			externalLoading.value = true
 			launchJob(Dispatchers.IO) {
-				val cached = tachiyomiCatalogRepository.loadCached(normalized)
-				externalArtifacts.value = cached
-				contentTypes.value = getExternalContentTypes(cached)
-				runCatching { tachiyomiCatalogRepository.load(normalized) }
-					.onSuccess { artifacts ->
-						externalArtifacts.value = artifacts
-						contentTypes.value = getExternalContentTypes(artifacts)
-					}
-				externalLoading.value = false
+				try {
+					val cached = tachiyomiCatalogRepository.loadCached(normalized)
+					externalArtifacts.value = cached
+					contentTypes.value = getExternalContentTypes(cached)
+					val result = runCatching { tachiyomiCatalogRepository.load(normalized) }
+					result
+						.onSuccess { artifacts ->
+							externalArtifacts.value = artifacts
+							contentTypes.value = getExternalContentTypes(artifacts)
+						}.onFailure { onExternalError.call(it) }
+				} catch (error: Throwable) {
+					if (error is CancellationException) throw error
+					onExternalError.call(error)
+				} finally {
+					externalLoading.value = false
+				}
 			}
 		}
 
@@ -180,10 +190,12 @@ class SourcesCatalogViewModel
 			}
 		}
 
-		suspend fun downloadTachiyomiApk(item: SourceCatalogItem.Tachiyomi): File? {
-			if (!item.canInstallApk) return null
-			return tachiyomiCatalogRepository.downloadApk(item.artifact)
+		suspend fun downloadTachiyomiApkResult(item: SourceCatalogItem.Tachiyomi): Result<File> {
+			if (!item.canInstallApk) return Result.failure(IOException("APK installation is not available for ${item.artifact.packageName}"))
+			return tachiyomiCatalogRepository.downloadApkResult(item.artifact)
 		}
+
+		suspend fun downloadTachiyomiApk(item: SourceCatalogItem.Tachiyomi): File? = downloadTachiyomiApkResult(item).getOrNull()
 
 		suspend fun refreshTachiyomiRuntime() {
 			runCatching { tachiyomiRuntime.ensureReady(forceRefresh = true) }
@@ -204,6 +216,11 @@ class SourcesCatalogViewModel
 				success
 			}
 
+		suspend fun toggleTachiyomiResult(item: SourceCatalogItem.Tachiyomi): Result<Unit> =
+			runCatching {
+				if (!toggleTachiyomi(item)) throw IOException("Failed to update Tachiyomi extension ${item.artifact.packageName}")
+			}
+
 		suspend fun prepareTachiyomiSource(item: SourceCatalogItem.Tachiyomi): TachiyomiSourceOpenResult? =
 			withTachiyomiLoading(item.artifact.packageName) {
 				val previewPackageName =
@@ -221,6 +238,11 @@ class SourcesCatalogViewModel
 					repository.syncRegistrySources()
 				}
 				source?.let { TachiyomiSourceOpenResult(it, previewPackageName) }
+			}
+
+		suspend fun prepareTachiyomiSourceResult(item: SourceCatalogItem.Tachiyomi): Result<TachiyomiSourceOpenResult> =
+			runCatching {
+				prepareTachiyomiSource(item) ?: throw IOException("Failed to load Tachiyomi source ${item.source.name}")
 			}
 
 		suspend fun unloadTachiyomiPreview(packageName: String): Boolean {

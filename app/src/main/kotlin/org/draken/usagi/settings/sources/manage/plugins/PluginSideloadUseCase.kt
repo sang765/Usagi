@@ -31,10 +31,10 @@ class PluginSideloadUseCase
 		private val pluginKeyResolver: PluginKeyResolver,
 		private val updatePluginsProvider: UpdatePluginsProvider,
 	) {
-		suspend fun importFromUri(
+		suspend fun importFromUriResult(
 			uri: Uri,
 			fileName: String,
-		): Boolean =
+		): Result<Unit> =
 			withContext(Dispatchers.IO) {
 				val safeName = PluginFileLoader.resolve(fileName)
 				runCatchingCancellable {
@@ -42,17 +42,26 @@ class PluginSideloadUseCase
 					PluginFileLoader.copyFromUri(context, uri, File(pluginsDir, safeName))
 					updatePluginsProvider.clearDto(safeName)
 					reload(pluginsDir)
-				}.isSuccess
+				}
+			}
+
+		suspend fun importFromUri(
+			uri: Uri,
+			fileName: String,
+		): Boolean = importFromUriResult(uri, fileName).isSuccess
+
+		suspend fun importFromGithubResult(
+			release: ExternalPluginDto,
+			fileName: String = release.fileName,
+		): Result<Unit> =
+			withContext(Dispatchers.IO) {
+				updatePluginsProvider.installPluginResult(release, PluginFileLoader.resolve(fileName))
 			}
 
 		suspend fun importFromGithub(
 			release: ExternalPluginDto,
 			fileName: String = release.fileName,
-		): Boolean =
-			withContext(Dispatchers.IO) {
-				updatePluginsProvider
-					.installPlugin(release, PluginFileLoader.resolve(fileName))
-			}
+		): Boolean = importFromGithubResult(release, fileName).isSuccess
 
 		fun listInstalled(): List<String> = mangaDynamicRepository.get().sorted()
 

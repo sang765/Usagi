@@ -68,6 +68,8 @@ class PluginManageAdapter(
 		}
 
 		bind {
+			item.iconUrl?.let { binding.imageViewIcon.setImageAsync(it, item.displayName) }
+				?: binding.imageViewIcon.setImageResource(R.drawable.ic_services)
 			itemView.isSelected = isSelected(item)
 			binding.textViewTitle.text = item.displayName
 			val parts = ArrayList<String>(3)
@@ -106,6 +108,8 @@ class PluginManageAdapter(
 		}
 		itemView.setOnClickListener { onClick(item) }
 		bind {
+			item.iconUrl?.let { binding.imageViewIcon.setImageAsync(it, item.displayName) }
+				?: binding.imageViewIcon.setImageResource(R.drawable.ic_services)
 			itemView.isSelected = isSelected(item)
 			binding.textViewTitle.text = item.displayName
 			binding.textViewDescription.text =

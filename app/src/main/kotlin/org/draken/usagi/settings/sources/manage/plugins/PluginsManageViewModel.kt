@@ -93,27 +93,58 @@ class PluginsManageViewModel
 				updatePluginsProvider.requestPlugins(repository, tag)
 			}
 
+		suspend fun importFromUriResult(
+			uri: Uri,
+			fileName: String,
+		): ImportOutcome =
+			pluginSideloadUseCase.importFromUriResult(uri, fileName).fold(
+				onSuccess = {
+					refresh()
+					ImportOutcome.Success
+				},
+				onFailure = { ImportOutcome.Failure(it) },
+			)
+
 		suspend fun importFromUri(
 			uri: Uri,
 			fileName: String,
-		): Boolean = pluginSideloadUseCase.importFromUri(uri, fileName).also { if (it) refresh() }
+		): Boolean = importFromUriResult(uri, fileName).isSuccess
+
+		suspend fun importFromGithubResult(
+			release: ExternalPluginDto,
+			fileName: String = release.fileName,
+		): ImportOutcome =
+			pluginSideloadUseCase.importFromGithubResult(release, fileName).fold(
+				onSuccess = {
+					refresh()
+					ImportOutcome.Success
+				},
+				onFailure = { ImportOutcome.Failure(it) },
+			)
 
 		suspend fun importFromGithub(
 			release: ExternalPluginDto,
 			fileName: String = release.fileName,
-		): Boolean = pluginSideloadUseCase.importFromGithub(release, fileName).also { if (it) refresh() }
+		): Boolean = importFromGithubResult(release, fileName).isSuccess
 
-		suspend fun discoverTachiyomiIndexes(input: String): List<TachiyomiIndexFile> = withContext(Dispatchers.Default) { tachiyomiCatalogRepository.discoverIndexFiles(input) }
+		suspend fun discoverTachiyomiIndexesResult(input: String): Result<List<TachiyomiIndexFile>> = withContext(Dispatchers.Default) { tachiyomiCatalogRepository.discoverIndexFilesResult(input) }
 
-		suspend fun importTachiyomiIndexes(indexes: List<TachiyomiIndexFile>): Boolean {
+		suspend fun discoverTachiyomiIndexes(input: String): List<TachiyomiIndexFile> = discoverTachiyomiIndexesResult(input).getOrDefault(emptyList())
+
+		suspend fun importTachiyomiIndexesResult(indexes: List<TachiyomiIndexFile>): ImportOutcome {
+			var lastError: Throwable? = null
 			for (index in indexes) {
-				if (tachiyomiCatalogRepository.importIndex(index)) {
+				val result = tachiyomiCatalogRepository.importIndexResult(index)
+				if (result.isSuccess) {
 					refresh()
-					return true
+					return ImportOutcome.Success
 				}
+				lastError = result.exceptionOrNull()
 			}
-			return false
+			return ImportOutcome.Failure(lastError ?: IllegalStateException("No compatible Tachiyomi index found"))
 		}
+
+		suspend fun importTachiyomiIndexes(indexes: List<TachiyomiIndexFile>): Boolean = importTachiyomiIndexesResult(indexes).isSuccess
 
 		fun tachiyomiRepositories(): List<TachiyomiExternalRepository> = tachiyomiCatalogRepository.savedRepositories()
 
@@ -178,6 +209,17 @@ class PluginsManageViewModel
 		): Boolean = tachiyomiCatalogRepository.renameRepository(item.url, newRawName).also { if (it) refresh() }
 
 		fun isInstalled(fileName: String): Boolean = pluginSideloadUseCase.isInstalled(fileName)
+
+		sealed interface ImportOutcome {
+			data object Success : ImportOutcome
+
+			data class Failure(
+				val error: Throwable,
+			) : ImportOutcome
+
+			val isSuccess: Boolean
+				get() = this is Success
+		}
 
 		private fun publishFiltered() {
 			val all: List<PluginManageItem> = pluginsSnapshot + externalRepositoriesSnapshot
