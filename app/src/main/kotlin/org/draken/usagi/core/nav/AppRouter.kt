@@ -21,7 +21,10 @@ import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.findFragment
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.whenResumed
 import dagger.hilt.android.EntryPointAccessors
+import kotlinx.coroutines.launch
 import org.draken.usagi.BuildConfig
 import org.draken.usagi.R
 import org.draken.usagi.alternatives.ui.AlternativesActivity
@@ -503,6 +506,23 @@ class AppRouter private constructor(
 	fun showErrorDialog(
 		error: Throwable,
 		url: String? = null,
+	) {
+		val fragmentManager = getFragmentManager() ?: return
+		if (!fragmentManager.isStateSaved) {
+			showErrorDialogNow(error, url)
+			return
+		}
+		val owner = activity ?: fragment?.viewLifecycleOwner ?: return
+		owner.lifecycleScope.launch {
+			owner.lifecycle.whenResumed {
+				getFragmentManager()?.takeIf { !it.isStateSaved }?.let { showErrorDialogNow(error, url) }
+			}
+		}
+	}
+
+	private fun showErrorDialogNow(
+		error: Throwable,
+		url: String?,
 	) {
 		ErrorDetailsDialog()
 			.withArgs(2) {

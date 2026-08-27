@@ -230,45 +230,49 @@ class PluginsManageViewModel
 		}
 
 		private fun publishFiltered() {
-			if (isImporting) {
-				content.value = listOf(PluginManageItem.Importing)
-				return
-			}
 			val all: List<PluginManageItem> = pluginsSnapshot + externalRepositoriesSnapshot
 			if (all.isEmpty()) {
 				content.value =
-					listOf(
-						PluginManageItem.Placeholder(
-							titleResId = R.string.no_plugins,
-							summaryResId = R.string.no_plugins_summary,
-						),
-					)
+					if (isImporting) {
+						listOf(PluginManageItem.Importing)
+					} else {
+						listOf(
+							PluginManageItem.Placeholder(
+								titleResId = R.string.no_plugins,
+								summaryResId = R.string.no_plugins_summary,
+							),
+						)
+					}
 				return
 			}
 			val q = query
-			if (q.isBlank()) {
-				content.value = all
-				return
-			}
 			val filtered =
-				all.filter { item ->
-					when (item) {
-						is PluginManageItem.Plugin -> {
-							item.name.contains(q, true) || item.repository?.contains(q, true) == true
-						}
+				if (q.isBlank()) {
+					all
+				} else {
+					all.filter { item ->
+						when (item) {
+							is PluginManageItem.Plugin -> {
+								item.name.contains(q, true) || item.repository?.contains(q, true) == true
+							}
 
-						is PluginManageItem.ExternalRepository -> {
-							item.title.contains(q, true) || item.path.contains(q, true) || item.url.contains(q, true)
-						}
+							is PluginManageItem.ExternalRepository -> {
+								item.title.contains(q, true) || item.path.contains(q, true) || item.url.contains(q, true)
+							}
 
-						is PluginManageItem.Placeholder, PluginManageItem.Importing -> {
-							false
+							is PluginManageItem.Placeholder, PluginManageItem.Importing -> {
+								false
+							}
 						}
 					}
 				}
 			content.value =
-				filtered.ifEmpty {
+				if (filtered.isEmpty()) {
 					listOf(PluginManageItem.Placeholder(titleResId = R.string.nothing_found, summaryResId = null))
+				} else if (isImporting) {
+					filtered + PluginManageItem.Importing
+				} else {
+					filtered
 				}
 		}
 

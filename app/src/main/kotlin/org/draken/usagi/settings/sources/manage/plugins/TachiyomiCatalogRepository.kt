@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.draken.tsukimix.core.parser.tachiyomi.TachiyomiCatalogSource
 import org.draken.tsukimix.core.parser.tachiyomi.TachiyomiExtensionArtifact
 import org.draken.tsukimix.core.parser.tachiyomi.TachiyomiExtensionCatalogProvider
 import org.draken.usagi.core.network.BaseHttpClient
@@ -84,7 +85,7 @@ class TachiyomiCatalogRepository
 					val url =
 						index.url.trim().takeIf { it.startsWith("http://") || it.startsWith("https://") }
 							?: throw IOException("Invalid Tachiyomi index URL: ${index.url}")
-					val artifacts = catalogProvider.load(url)
+					val artifacts = loadCatalog(url)
 					val loadError = catalogProvider.lastLoadError
 					if (artifacts.isEmpty() && !loadError.isNullOrBlank()) {
 						throw IOException(loadError)
@@ -122,8 +123,80 @@ class TachiyomiCatalogRepository
 
 		suspend fun load(url: String): List<TachiyomiExtensionArtifact> =
 			withContext(Dispatchers.IO) {
-				catalogProvider.load(url)
+				loadCatalog(url)
 			}
+
+		private suspend fun loadCatalog(url: String): List<TachiyomiExtensionArtifact> {
+			val parsed = catalogProvider.load(url)
+			if (parsed.isNotEmpty()) return parsed
+			return runCatching { parseLegacyCatalog(url, getBody(url)) }.getOrDefault(emptyList())
+		}
+
+		private fun parseLegacyCatalog(
+			indexUrl: String,
+			body: String,
+		): List<TachiyomiExtensionArtifact> {
+			val extensions = JSONArray(body.removePrefix("\uFEFF").trim())
+			return buildList {
+				for (index in 0 until extensions.length()) {
+					val extension = extensions.optJSONObject(index) ?: continue
+					val packageName = extension.optString("pkg").takeIf { it.isNotBlank() } ?: continue
+					val extensionName = extension.optString("name", packageName)
+					val extensionLib = extension.optString("libVersion").toDoubleOrNull()
+					val contentType = if (extension.optInt("nsfw") == 1) tsuki.model.ContentType.HENTAI else tsuki.model.ContentType.MANGA
+					val sourceObjects = extension.optJSONArray("sources")
+					val sources =
+						buildList {
+							if (sourceObjects != null) {
+								for (sourceIndex in 0 until sourceObjects.length()) {
+									val source = sourceObjects.optJSONObject(sourceIndex) ?: continue
+									val id = source.optString("id").toLongOrNull() ?: continue
+									add(
+										TachiyomiCatalogSource(
+											id = id,
+											name = source.optString("name", extensionName),
+											language = source.optString("lang", "all").ifBlank { "all" },
+											homeUrl = source.optString("baseUrl").takeIf { it.isNotBlank() },
+											contentType = contentType,
+										),
+									)
+								}
+							}
+						}
+					val apk = extension.optString("apk").takeIf { it.isNotBlank() }?.let { resolveLegacyAssetUrl(indexUrl, "apk", it) }
+					val jar = extension.optString("jar").takeIf { it.isNotBlank() }?.let { resolveLegacyAssetUrl(indexUrl, "jar", it) }
+					val icon =
+						extension.optString("icon").takeIf { it.isNotBlank() }?.let { resolveLegacyAssetUrl(indexUrl, "icon", it) }
+							?: resolveLegacyAssetUrl(indexUrl, "icon", "$packageName.png")
+					add(
+						TachiyomiExtensionArtifact(
+							repositoryUrl = indexUrl,
+							name = extensionName,
+							packageName = packageName,
+							jarUrl = jar,
+							apkUrl = apk,
+							iconUrl = icon,
+							extensionLib = extensionLib,
+							versionCode = extension.optLong("code").takeIf { it != 0L },
+							versionName = extension.optString("version").takeIf { it.isNotBlank() },
+							contentType = contentType,
+							sources = sources,
+						),
+					)
+				}
+			}
+		}
+
+		private fun resolveLegacyAssetUrl(
+			indexUrl: String,
+			directory: String,
+			asset: String,
+		): String {
+			if (asset.startsWith("http://") || asset.startsWith("https://")) return asset
+			val baseUrl = indexUrl.substringBeforeLast('/')
+			val path = asset.removePrefix("./").removePrefix("/")
+			return if (path.startsWith("$directory/")) "$baseUrl/$path" else "$baseUrl/$directory/$path"
+		}
 
 		suspend fun downloadApkResult(artifact: TachiyomiExtensionArtifact): Result<File> =
 			withContext(Dispatchers.IO) {
@@ -165,17 +238,22 @@ class TachiyomiCatalogRepository
 				}
 			}.isSuccess
 
-		private suspend fun getJson(url: String): JSONObject {
+		private suspend fun getJson(url: String): JSONObject = JSONObject(getBody(url))
+
+		private suspend fun getBody(url: String): String {
 			val request =
 				Request
 					.Builder()
 					.url(url)
-					.header("Accept", "application/vnd.github+json")
+					.header("Accept", "application/json")
 					.header("X-GitHub-Api-Version", "2022-11-28")
 					.build()
 			return httpClient.newCall(request).await().use { response ->
-				if (!response.isSuccessful) throw IOException("GitHub returned HTTP ${response.code}")
-				JSONObject(response.body?.string().orEmpty())
+				if (!response.isSuccessful) throw IOException("GitHub returned HTTP ${response.code}: $url")
+				response.body
+					?.string()
+					.orEmpty()
+					.takeIf { it.isNotBlank() } ?: throw IOException("Empty response body: $url")
 			}
 		}
 
