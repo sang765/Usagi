@@ -37,6 +37,10 @@ sealed interface PluginManageItem : ListModel {
 		override fun areItemsTheSame(other: ListModel): Boolean = other is ExternalRepository && url == other.url
 	}
 
+	data object Importing : PluginManageItem {
+		override fun areItemsTheSame(other: ListModel): Boolean = other is Importing
+	}
+
 	data class Placeholder(
 		@field:StringRes val titleResId: Int,
 		@field:StringRes val summaryResId: Int?,

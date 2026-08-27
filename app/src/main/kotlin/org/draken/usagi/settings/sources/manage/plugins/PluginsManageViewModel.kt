@@ -35,6 +35,9 @@ class PluginsManageViewModel
 		@Volatile
 		private var query = ""
 
+		@Volatile
+		private var isImporting = false
+
 		init {
 			refresh()
 		}
@@ -62,6 +65,11 @@ class PluginsManageViewModel
 					publishFiltered()
 				}
 			}
+		}
+
+		fun setImporting(value: Boolean) {
+			isImporting = value
+			publishFiltered()
 		}
 
 		fun setQuery(value: String?) {
@@ -222,6 +230,10 @@ class PluginsManageViewModel
 		}
 
 		private fun publishFiltered() {
+			if (isImporting) {
+				content.value = listOf(PluginManageItem.Importing)
+				return
+			}
 			val all: List<PluginManageItem> = pluginsSnapshot + externalRepositoriesSnapshot
 			if (all.isEmpty()) {
 				content.value =

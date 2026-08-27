@@ -1,6 +1,5 @@
 package org.draken.usagi.settings.sources.manage.plugins
 
-import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
@@ -9,7 +8,6 @@ import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
-import android.view.animation.LinearInterpolator
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.view.ActionMode
@@ -51,7 +49,6 @@ class PluginsManageFragment :
 	RecyclerViewOwner {
 	private val viewModel by viewModels<PluginsManageViewModel>()
 	private var pluginsAdapter: PluginManageAdapter? = null
-	private var importAnimator: ObjectAnimator? = null
 
 	private val launcher =
 		registerForActivityResult(
@@ -70,11 +67,11 @@ class PluginsManageFragment :
 					if (pluginName.isBlank()) return@launch
 					val fileName = PluginFileLoader.resolve(pluginName)
 					if (viewModel.isInstalled(fileName) && !askOverwrite(fileName)) return@launch
-					startImportAnimation()
+					startImportLoading()
 					try {
 						showImportResult(viewModel.importFromUriResult(uri, fileName))
 					} finally {
-						stopImportAnimation()
+						stopImportLoading()
 					}
 				}
 			}
@@ -188,7 +185,7 @@ class PluginsManageFragment :
 		val actionBar = (activity as? androidx.appcompat.app.AppCompatActivity)?.supportActionBar
 		actionBar?.setHomeAsUpIndicator(null)
 		pluginsAdapter = null
-		stopImportAnimation()
+		stopImportLoading()
 		super.onDestroyView()
 	}
 
@@ -215,7 +212,7 @@ class PluginsManageFragment :
 			viewLifecycleOwner.lifecycleScope.launch {
 				val input = askText(R.string.import_from_github, "", null)?.trim().orEmpty()
 				if (input.isBlank()) return@launch
-				startImportAnimation()
+				startImportLoading()
 				try {
 					val indexesResult = viewModel.discoverTachiyomiIndexesResult(input)
 					val indexes = indexesResult.getOrDefault(emptyList())
@@ -239,7 +236,7 @@ class PluginsManageFragment :
 					if (viewModel.isInstalled(fileName) && !askOverwrite(fileName)) return@launch
 					showImportResult(viewModel.importFromGithubResult(release, fileName))
 				} finally {
-					stopImportAnimation()
+					stopImportLoading()
 				}
 			}
 		}
@@ -420,26 +417,14 @@ class PluginsManageFragment :
 		router.showErrorDialog(error)
 	}
 
-	private fun startImportAnimation() {
-		val fab = viewBinding?.fabImport ?: return
-		importAnimator?.cancel()
-		fab.isEnabled = false
-		importAnimator =
-			ObjectAnimator.ofFloat(fab, View.ROTATION, 0f, 360f).apply {
-				duration = 800L
-				interpolator = LinearInterpolator()
-				repeatCount = ObjectAnimator.INFINITE
-				start()
-			}
+	private fun startImportLoading() {
+		viewModel.setImporting(true)
+		viewBinding?.fabImport?.isEnabled = false
 	}
 
-	private fun stopImportAnimation() {
-		importAnimator?.cancel()
-		importAnimator = null
-		viewBinding?.fabImport?.apply {
-			rotation = 0f
-			isEnabled = true
-		}
+	private fun stopImportLoading() {
+		viewModel.setImporting(false)
+		viewBinding?.fabImport?.isEnabled = true
 	}
 
 	private companion object {

@@ -8,6 +8,7 @@ import org.draken.usagi.R
 import org.draken.usagi.core.ui.BaseListAdapter
 import org.draken.usagi.core.util.ext.setTextAndVisible
 import org.draken.usagi.databinding.ItemEmptyHintBinding
+import org.draken.usagi.databinding.ItemPluginImportLoadingBinding
 import org.draken.usagi.databinding.ItemSourceConfigBinding
 import org.draken.usagi.list.ui.adapter.ListItemType
 import org.draken.usagi.list.ui.model.ListModel
@@ -25,6 +26,7 @@ class PluginManageAdapter(
 	isExternalSelected: (PluginManageItem.ExternalRepository) -> Boolean,
 ) : BaseListAdapter<ListModel>() {
 	init {
+		addDelegate(ListItemType.STATE_LOADING, pluginImportLoadingDelegate())
 		addDelegate(
 			ListItemType.CHAPTER_LIST,
 			pluginItemDelegate(onRenameClick, onUpdateClick, onLongClick, onClick, isSelected),
@@ -117,6 +119,15 @@ class PluginManageAdapter(
 					.joinToString(" • ")
 		}
 	}
+
+	private fun pluginImportLoadingDelegate() =
+		adapterDelegateViewBinding<PluginManageItem.Importing, ListModel, ItemPluginImportLoadingBinding>(
+			{ layoutInflater, parent -> ItemPluginImportLoadingBinding.inflate(layoutInflater, parent, false) },
+		) {
+			bind {
+				binding.root.startShimmer()
+			}
+		}
 
 	private fun pluginPlaceholderDelegate() =
 		adapterDelegateViewBinding<PluginManageItem.Placeholder, ListModel, ItemEmptyHintBinding>(
