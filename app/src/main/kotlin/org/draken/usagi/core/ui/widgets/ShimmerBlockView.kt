@@ -13,7 +13,6 @@ import android.view.View
 import android.view.animation.LinearInterpolator
 import androidx.core.graphics.ColorUtils
 import com.google.android.material.color.MaterialColors
-import org.draken.usagi.R
 
 class ShimmerBlockView
 	@JvmOverloads
@@ -23,7 +22,8 @@ class ShimmerBlockView
 	) : View(context, attrs) {
 		private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 		private val block = RectF()
-		private val cornerRadius = resources.getDimension(R.dimen.margin_small)
+		private val density = resources.displayMetrics.density
+		private val cornerRadius = 6f * density
 		private val baseColor = MaterialColors.getColor(this, com.google.android.material.R.attr.colorSurfaceContainerHighest, Color.GRAY)
 		private val highlightColor =
 			ColorUtils.blendARGB(
@@ -54,13 +54,12 @@ class ShimmerBlockView
 		}
 
 		override fun onDraw(canvas: Canvas) {
-			val density = resources.displayMetrics.density
 			val horizontalPadding = 2f * density
-			val verticalPadding = 10f * density
-			val iconSize = (height - verticalPadding * 2).coerceAtMost(40f * density)
-			val textStart = iconSize + 16f * density
-			val titleEnd = (width * 0.62f).coerceAtLeast(textStart + 80f * density)
-			val metadataEnd = (width * 0.86f).coerceAtLeast(textStart + 120f * density)
+			val verticalPadding = 8f * density
+			val iconSize = (height - verticalPadding * 2).coerceAtMost(32f * density)
+			val textStart = iconSize + 12f * density
+			val titleEnd = textStart + 140f * density
+			val metadataEnd = textStart + 220f * density
 			val shineCenter = width * progress
 			paint.shader =
 				LinearGradient(
@@ -74,8 +73,8 @@ class ShimmerBlockView
 				)
 
 			drawBlock(canvas, horizontalPadding, verticalPadding, horizontalPadding + iconSize, verticalPadding + iconSize)
-			drawBlock(canvas, textStart, verticalPadding + 2f * density, titleEnd, verticalPadding + 18f * density)
-			drawBlock(canvas, textStart, verticalPadding + 26f * density, metadataEnd, verticalPadding + 38f * density)
+			drawBlock(canvas, textStart, verticalPadding + 1f * density, titleEnd, verticalPadding + 15f * density)
+			drawBlock(canvas, textStart, verticalPadding + 22f * density, metadataEnd, verticalPadding + 34f * density)
 			paint.shader = null
 		}
 
@@ -86,7 +85,7 @@ class ShimmerBlockView
 			right: Float,
 			bottom: Float,
 		) {
-			val inset = resources.displayMetrics.density * 2f
+			val inset = density * 2f
 			block.set(left, top, right.coerceAtMost(width - inset), bottom.coerceAtMost(height - inset))
 			canvas.drawRoundRect(block, cornerRadius, cornerRadius, paint)
 		}

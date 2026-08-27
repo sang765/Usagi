@@ -2,7 +2,7 @@
 <org.draken.usagi.core.ui.widgets.ShimmerBlockView
 	xmlns:android="http://schemas.android.com/apk/res/android"
 	android:layout_width="match_parent"
-	android:layout_height="72dp"
+	android:layout_height="56dp"
 	android:layout_marginStart="?listPreferredItemPaddingStart"
 	android:layout_marginTop="@dimen/margin_small"
 	android:layout_marginEnd="?listPreferredItemPaddingEnd"
