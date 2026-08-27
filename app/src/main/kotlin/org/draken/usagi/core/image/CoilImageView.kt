@@ -176,7 +176,7 @@ open class CoilImageView
 		}
 
 		protected open fun newRequestBuilder() =
-			ImageRequest.Builder(context).apply {
+			ImageRequest.Builder(context.applicationContext).apply {
 				lifecycle(findViewTreeLifecycleOwner())
 				val crossfadeDuration =
 					if (context.isAnimationsEnabled) {
