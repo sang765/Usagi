@@ -64,7 +64,6 @@ open class CoilImageView
 
 		private var currentRequest: Disposable? = null
 		private var currentImageData: Any = NullRequestData
-		private var lastRequest: ImageRequest? = null
 		private var networkWaitingJob: Job? = null
 
 		private var listeners: MutableList<ImageRequest.Listener>? = null
@@ -142,23 +141,8 @@ open class CoilImageView
 					.build(),
 			)
 
-		override fun onAttachedToWindow() {
-			super.onAttachedToWindow()
-			if (CoilUtils.result(this) == null) {
-				lastRequest?.let { request ->
-					currentRequest = coil.enqueue(request)
-				}
-			}
-		}
-
-		override fun onDetachedFromWindow() {
-			cancelCurrentRequest()
-			super.onDetachedFromWindow()
-		}
-
 		fun disposeImage() {
 			cancelCurrentRequest()
-			lastRequest = null
 			currentImageData = NullRequestData
 			setImageDrawable(null)
 		}
@@ -187,7 +171,6 @@ open class CoilImageView
 			networkWaitingJob?.cancel()
 			networkWaitingJob = null
 			currentImageData = request.data
-			lastRequest = request
 			return coil.enqueue(request).also { currentRequest = it }
 		}
 

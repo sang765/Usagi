@@ -216,27 +216,36 @@ class PluginsManageFragment :
 				if (input.isBlank()) return@launch
 				startImportLoading()
 				try {
-					val indexesResult = viewModel.discoverTachiyomiIndexesResult(input)
-					val indexes = indexesResult.getOrDefault(emptyList())
-					if (indexes.isNotEmpty()) {
-						showImportResult(viewModel.importTachiyomiIndexesResult(indexes))
-						return@launch
-					}
 					val releases = viewModel.resolveGithubReleases(input)
-					if (releases.isEmpty()) {
-						showImportFailure(indexesResult.exceptionOrNull() ?: IllegalStateException("No compatible plugin or Tachiyomi index found: $input"))
-						return@launch
-					}
-					val release =
-						if (releases.size == 1) {
-							releases.first()
-						} else {
-							val index = askSelect(releases.map { it.fileName }) ?: return@launch
-							releases.getOrNull(index) ?: return@launch
+					when (githubImportKind(releases.size)) {
+						GithubImportKind.USAGI_PLUGIN -> {
+							val release =
+								if (releases.size == 1) {
+									releases.first()
+								} else {
+									val index = askSelect(releases.map { it.fileName }) ?: return@launch
+									releases.getOrNull(index) ?: return@launch
+								}
+							val fileName = PluginFileLoader.resolve(release.fileName)
+							if (viewModel.isInstalled(fileName) && !askOverwrite(fileName)) return@launch
+							showImportResult(viewModel.importFromGithubResult(release, fileName))
 						}
-					val fileName = PluginFileLoader.resolve(release.fileName)
-					if (viewModel.isInstalled(fileName) && !askOverwrite(fileName)) return@launch
-					showImportResult(viewModel.importFromGithubResult(release, fileName))
+
+						GithubImportKind.NO_RELEASES,
+						GithubImportKind.TACHIYOMI_REPOSITORY,
+						-> {
+							val indexesResult = viewModel.discoverTachiyomiIndexesResult(input)
+							val indexes = indexesResult.getOrDefault(emptyList())
+							if (indexes.isNotEmpty()) {
+								showImportResult(viewModel.importTachiyomiIndexesResult(indexes))
+								return@launch
+							}
+							showImportFailure(
+								indexesResult.exceptionOrNull()
+									?: IllegalStateException("No compatible plugin or Tachiyomi index found: $input"),
+							)
+						}
+					}
 				} finally {
 					stopImportLoading()
 				}
