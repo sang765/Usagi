@@ -141,6 +141,11 @@ open class CoilImageView
 					.build(),
 			)
 
+		override fun onDetachedFromWindow() {
+			disposeImage()
+			super.onDetachedFromWindow()
+		}
+
 		fun disposeImage() {
 			networkWaitingJob?.cancel()
 			networkWaitingJob = null
