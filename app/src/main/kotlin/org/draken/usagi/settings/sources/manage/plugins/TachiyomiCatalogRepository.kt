@@ -127,6 +127,12 @@ class TachiyomiCatalogRepository
 			}
 
 		private suspend fun loadCatalog(url: String): List<TachiyomiExtensionArtifact> {
+			if (url.endsWith("/repo/index.json", true) || url.endsWith("/repo/index.min.json", true)) {
+				val body = runCatching { getBody(url) }.getOrNull()
+				if (body?.trimStart()?.startsWith("[") == true) {
+					return runCatching { parseLegacyCatalog(url, body) }.getOrDefault(emptyList())
+				}
+			}
 			val parsed = catalogProvider.load(url)
 			if (parsed.isNotEmpty()) return parsed
 			return runCatching { parseLegacyCatalog(url, getBody(url)) }.getOrDefault(emptyList())
@@ -249,7 +255,12 @@ class TachiyomiCatalogRepository
 					.header("X-GitHub-Api-Version", "2022-11-28")
 					.build()
 			return httpClient.newCall(request).await().use { response ->
-				if (!response.isSuccessful) throw IOException("GitHub returned HTTP ${response.code}: $url")
+				if (!response.isSuccessful) {
+					val remaining = response.header("X-RateLimit-Remaining")
+					val reset = response.header("X-RateLimit-Reset")
+					val rateLimit = if (remaining != null) ", rate-limit remaining=$remaining, reset=$reset" else ""
+					throw IOException("GitHub returned HTTP ${response.code}: $url$rateLimit")
+				}
 				response.body
 					?.string()
 					.orEmpty()

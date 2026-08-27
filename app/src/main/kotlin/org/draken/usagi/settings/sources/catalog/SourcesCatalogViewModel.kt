@@ -96,16 +96,18 @@ class SourcesCatalogViewModel
 		private val contentTypes = MutableStateFlow<List<ContentType>>(emptyList())
 
 		val uiState: StateFlow<SourcesCatalogUiState> =
-			combine(appliedFilter, hasNewSources, contentTypes, ::SourcesCatalogUiState)
-				.stateIn(
-					viewModelScope + Dispatchers.Default,
-					SharingStarted.Eagerly,
-					SourcesCatalogUiState(
-						appliedFilter = appliedFilter.value,
-						hasNewSources = hasNewSources.value,
-						contentTypes = contentTypes.value,
-					),
-				)
+			combine(appliedFilter, hasNewSources, contentTypes, externalLoading) { filter, hasNew, types, loading ->
+				SourcesCatalogUiState(filter, hasNew, types, loading)
+			}.stateIn(
+				viewModelScope + Dispatchers.Default,
+				SharingStarted.Eagerly,
+				SourcesCatalogUiState(
+					appliedFilter = appliedFilter.value,
+					hasNewSources = hasNewSources.value,
+					contentTypes = contentTypes.value,
+					isExternalLoading = externalLoading.value,
+				),
+			)
 
 		val content: StateFlow<List<ListModel>> =
 			combine(
@@ -119,7 +121,7 @@ class SourcesCatalogViewModel
 			) { state, installed, legacyInstalled, _, loadingPackages ->
 
 				if (state.url != null) {
-					if (state.loading) {
+					if (state.loading && state.artifacts.isEmpty()) {
 						listOf(LoadingState)
 					} else {
 						buildExternalSourcesList(
@@ -153,6 +155,8 @@ class SourcesCatalogViewModel
 		fun openExternalRepository(url: String) {
 			val normalized = url.trim()
 			if (normalized.isBlank()) return
+			contentTypes.value = emptyList()
+			externalArtifacts.value = emptyList()
 			externalRepositoryUrl.value = normalized
 			externalLoading.value = true
 			launchJob(Dispatchers.IO) {

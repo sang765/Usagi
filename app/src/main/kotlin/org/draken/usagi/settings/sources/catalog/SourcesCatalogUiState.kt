@@ -7,4 +7,5 @@ data class SourcesCatalogUiState(
 	val appliedFilter: SourcesCatalogFilter,
 	val hasNewSources: Boolean,
 	val contentTypes: List<ContentType>,
+	val isExternalLoading: Boolean,
 )

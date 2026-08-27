@@ -23,3 +23,10 @@ The GitHub-avatar metadata icon (`https://github.com/<owner>.png`) is intended f
 - `https://raw.githubusercontent.com/FiorenMas/mihon-extensions/repo.json` was not a valid content endpoint in the check; do not claim root `repo.json` support without another verified source.
 
 Implementation implication: repository discovery should include GitHub `repo` branch candidate paths (`repo/index.json`, `repo/index.min.json`, `index.json`, `index.min.json`) in addition to default-branch JSON tree files, while parser compatibility remains limited to standard Tachiyomi array entries with downloadable APK names.
+
+
+## External Catalog latency and GitHub rate-limit check
+
+A direct unauthenticated request to `https://api.github.com/rate_limit` returned HTTP 200 with `x-ratelimit-limit: 60`, `x-ratelimit-remaining: 58`, and `x-ratelimit-used: 2` during this investigation. Therefore the observed slow loading was not caused by an exhausted primary GitHub API quota at measurement time. GitHub documents 60 REST requests/hour for unauthenticated public requests and 5,000/hour for authenticated user requests; an exhausted primary limit returns HTTP 403 or 429 with `x-ratelimit-remaining: 0` and a reset timestamp.
+
+The FiorenMas endpoints measured successfully: `repo/index.json` and `repo/index.min.json` returned HTTP 200 in approximately 0.25–0.28 seconds, while the default-branch `main/index.json` returned HTTP 404 and `master/index.json` returned HTTP 200 in approximately 0.57 seconds. The app now parses legacy array catalogs directly for `/repo/index.json` and `/repo/index.min.json`, avoiding the provider's multiple fallback URL/client attempts for this known format. GitHub API error messages in repository discovery now include rate-limit remaining/reset headers when available.

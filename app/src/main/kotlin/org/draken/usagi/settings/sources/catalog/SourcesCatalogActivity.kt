@@ -255,8 +255,10 @@ class SourcesCatalogActivity :
 					data = true,
 				)
 		}
-		state.contentTypes.mapTo(chips) { type ->
-			ChipModel(title = getString(type.titleResId), isChecked = type in appliedFilter.types, data = type)
+		if (!state.isExternalLoading) {
+			state.contentTypes.mapTo(chips) { type ->
+				ChipModel(title = getString(type.titleResId), isChecked = type in appliedFilter.types, data = type)
+			}
 		}
 		viewBinding.chipsFilter.setChips(chips)
 	}
