@@ -3,7 +3,9 @@ package org.draken.usagi.settings.sources.manage.plugins
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
+import android.text.Editable
 import android.text.InputType
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
@@ -371,6 +373,31 @@ class PluginsManageFragment :
 					buildAlertDialog(requireContext()) {
 						input = setEditText(InputType.TYPE_CLASS_TEXT, singleLine = true)
 						input.setText(defaultValue)
+						input.addTextChangedListener(
+							object : TextWatcher {
+								override fun beforeTextChanged(
+									s: CharSequence?,
+									start: Int,
+									count: Int,
+									after: Int,
+								) = Unit
+
+								override fun onTextChanged(
+									s: CharSequence?,
+									start: Int,
+									before: Int,
+									count: Int,
+								) = Unit
+
+								override fun afterTextChanged(s: Editable?) {
+									val current = s?.toString().orEmpty()
+									val normalized = current.replace(Regex("\\s+(?=\\S)"), "/")
+									if (normalized == current) return
+									input.setText(normalized)
+									input.setSelection(normalized.length)
+								}
+							},
+						)
 						if (hintRes != null) {
 							input.hint = getString(hintRes)
 						}
@@ -379,7 +406,7 @@ class PluginsManageFragment :
 							if (cont.isActive) cont.resume(null)
 						}
 						setPositiveButton(android.R.string.ok) { _, _ ->
-							if (cont.isActive) cont.resume(input.text?.toString())
+							if (cont.isActive) cont.resume(normalizeGithubImportInput(input.text?.toString().orEmpty()))
 						}
 					}
 				dialog.setOnCancelListener {
