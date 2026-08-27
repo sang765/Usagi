@@ -261,7 +261,7 @@ class PluginsManageViewModel
 							item.title.contains(q, true) || item.path.contains(q, true) || item.url.contains(q, true)
 						}
 
-						is PluginManageItem.Placeholder -> {
+						is PluginManageItem.Placeholder, PluginManageItem.Importing -> {
 							false
 						}
 					}
