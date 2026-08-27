@@ -129,7 +129,7 @@ open class CoilImageView
 		fun setImageAsync(
 			@DrawableRes resourceId: Int,
 		) = enqueueRequest(
-			newRequestBuilder()
+			newResourceRequestBuilder()
 				.data(resourceId)
 				.build(),
 		)
@@ -174,8 +174,12 @@ open class CoilImageView
 			return coil.enqueue(request).also { currentRequest = it }
 		}
 
-		protected open fun newRequestBuilder() =
-			ImageRequest.Builder(context.applicationContext).apply {
+		protected open fun newRequestBuilder() = newRequestBuilder(context.applicationContext)
+
+		private fun newResourceRequestBuilder() = newRequestBuilder(context)
+
+		private fun newRequestBuilder(requestContext: Context) =
+			ImageRequest.Builder(requestContext).apply {
 				lifecycle(findViewTreeLifecycleOwner())
 				val crossfadeDuration =
 					if (context.isAnimationsEnabled) {
