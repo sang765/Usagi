@@ -73,7 +73,7 @@ class TachiyomiCatalogRepository
 						}
 					(repoBranchIndexes + defaultBranchIndexes)
 						.distinctBy { it.url }
-						.sortedWith(compareBy<TachiyomiIndexFile> { indexPriority(it.path) }.thenBy { it.path.lowercase(Locale.ROOT) })
+						.sortedWith(compareBy<TachiyomiIndexFile> { tachiyomiIndexPriority(it.path) }.thenBy { it.path.lowercase(Locale.ROOT) })
 				}
 			}
 
@@ -332,15 +332,9 @@ class TachiyomiCatalogRepository
 			val name: String,
 		)
 
-		private fun indexPriority(path: String): Int =
-			when (path.lowercase(Locale.ROOT)) {
-				"repo/index.min.json", "index.min.json" -> 0
-				"repo/index.json", "index.json" -> 1
-				else -> 2
-			}
-
 		private companion object {
-			val STANDARD_INDEX_PATHS = listOf("index.min.json", "index.json")
+			val STANDARD_INDEX_PATHS = listOf("index.json", "min.index.json", "index.min.json")
+
 			const val PREFERENCES = "tachiyomi_catalog"
 
 			const val KEY_REPOSITORIES = "repositories"
